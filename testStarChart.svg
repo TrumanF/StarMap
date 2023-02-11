@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="1500.0" width="1800.0">
+	<rect width="100%" height="100%" fill="#0e218a" />
+	<circle cx="900.0" cy="750.0" r="675.0" stroke="white" stroke-width="5" fill="none" />
+	<line x1="900.0" y1="750.0" x2="1575.0" y2="750.0" stroke="white"  stroke-width="1" opacity="1"/>
+	<line x1="900.0" y1="750.0" x2="1551.999932745121" y2="575.2971445557985" stroke="white"  stroke-width="1" opacity="1"/>
+	<line x1="900.0" y1="750.0" x2="1484.5671475544962" y2="412.5" stroke="white"  stroke-width="1" opacity="1"/>
+	<line x1="900.0" y1="750.0" x2="1377.2970773009197" y2="272.7029226990803" stroke="white"  stroke-width="1" opacity="1"/>
+	<line x1="900.0" y1="750.0" x2="1237.5" y2="165.43285244550407" stroke="white"  stroke-width="1" opacity="1"/>
+	<line x1="900.0" y1="750.0" x2="1074.7028554442018" y2="98.00006725487901" stroke="white"  stroke-width="1" opacity="1"/>
+	<line x1="900.0" y1="750.0" x2="900.0" y2="75.0" stroke="white"  stroke-width="1" opacity="1"/>
+	<line x1="900.0" y1="750.0" x2="725.2971445557986" y2="98.00006725487901" stroke="white"  stroke-width="1" opacity="1"/>
+	<line x1="900.0" y1="750.0" x2="562.5000000000002" y2="165.43285244550384" stroke="white"  stroke-width="1" opacity="1"/>
+	<line x1="900.0" y1="750.0" x2="422.7029226990805" y2="272.7029226990803" stroke="white"  stroke-width="1" opacity="1"/>
+	<line x1="900.0" y1="750.0" x2="315.43285244550407" y2="412.4999999999998" stroke="white"  stroke-width="1" opacity="1"/>
+	<line x1="900.0" y1="750.0" x2="248.000067254879" y2="575.2971445557984" stroke="white"  stroke-width="1" opacity="1"/>
+	<line x1="900.0" y1="750.0" x2="225.0" y2="749.9999999999999" stroke="white"  stroke-width="1" opacity="1"/>
+	<line x1="900.0" y1="750.0" x2="248.0000672548788" y2="924.7028554442013" stroke="white"  stroke-width="1" opacity="1"/>
+	<line x1="900.0" y1="750.0" x2="315.43285244550384" y2="1087.4999999999998" stroke="white"  stroke-width="1" opacity="1"/>
+	<line x1="900.0" y1="750.0" x2="422.70292269908015" y2="1227.2970773009192" stroke="white"  stroke-width="1" opacity="1"/>
+	<line x1="900.0" y1="750.0" x2="562.4999999999998" y2="1334.567147554496" stroke="white"  stroke-width="1" opacity="1"/>
+	<line x1="900.0" y1="750.0" x2="725.297144555798" y2="1401.999932745121" stroke="white"  stroke-width="1" opacity="1"/>
+	<line x1="900.0" y1="750.0" x2="899.9999999999999" y2="1425.0" stroke="white"  stroke-width="1" opacity="1"/>
+	<line x1="900.0" y1="750.0" x2="1074.7028554442013" y2="1401.9999327451212" stroke="white"  stroke-width="1" opacity="1"/>
+	<line x1="900.0" y1="750.0" x2="1237.4999999999995" y2="1334.5671475544964" stroke="white"  stroke-width="1" opacity="1"/>
+	<line x1="900.0" y1="750.0" x2="1377.2970773009195" y2="1227.2970773009197" stroke="white"  stroke-width="1" opacity="1"/>
+	<line x1="900.0" y1="750.0" x2="1484.567147554496" y2="1087.5000000000002" stroke="white"  stroke-width="1" opacity="1"/>
+	<line x1="900.0" y1="750.0" x2="1551.999932745121" y2="924.7028554442021" stroke="white"  stroke-width="1" opacity="1"/>
+	<circle cx="900.0" cy="750.0" r="506.25" stroke="white" stroke-width="1" fill="none" />
+	<circle cx="900.0" cy="750.0" r="337.5" stroke="white" stroke-width="1" fill="none" />
+	<circle cx="900.0" cy="750.0" r="168.75" stroke="white" stroke-width="1" fill="none" />
+	<circle cx="1185.8717262461023" cy="292.09463810669786" r="6.48" stroke="white" stroke-width="1.0" fill="white" />
+	<circle cx="1142.0564009163095" cy="398.49701510085947" r="6.38" stroke="white" stroke-width="1.0" fill="white" />
+	<circle cx="1213.6036154364656" cy="218.0028570093632" r="6.3" stroke="white" stroke-width="1.0" fill="white" />
+	<circle cx="1180.9125601677779" cy="256.4490091008356" r="5.540000000000001" stroke="white" stroke-width="1.0" fill="white" />
+	<circle cx="1185.8410747275993" cy="416.4719904376343" r="5.32" stroke="white" stroke-width="1.0" fill="white" />
+	<circle cx="1216.5539351412863" cy="365.49133872327866" r="5.18" stroke="white" stroke-width="1.0" fill="white" />
+	<circle cx="897.0793185134149" cy="361.8927395645419" r="6.06" stroke="white" stroke-width="1.0" fill="white" />
+	<circle cx="1185.8729990730467" cy="335.5388398576479" r="3.3600000000000008" stroke="white" stroke-width="1.0" fill="white" />
+</svg>
