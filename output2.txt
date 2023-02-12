@@ -1,0 +1,96 @@
+Time: 126.34568738937378
+Successfully generated SVG
+Wrote profile results to main.py.lprof
+Timer unit: 1e-06 s
+
+Total time: 126.655 s
+File: C:\Users\truma\Documents\GitHub\StarMap\Chart.py
+Function: __init__ at line 25
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+    25                                               @profile
+    26                                               def __init__(self, OBS_INFO, CANVAS_INFO, STAR_DATA):
+    27         1          0.9      0.9      0.0          self.CANVAS_Y, self.CANVAS_X = CANVAS_INFO
+    28         1          8.2      8.2      0.0          self.chartSVG = SVG(self.CANVAS_Y, self.CANVAS_X)  # NOTE: Consider making this abstract
+    29         1          0.5      0.5      0.0          self.CHART_ELEMENT_OPACITY = .25
+    30         1          0.4      0.4      0.0          self.CHART_ELEMENT_WIDTH = 2
+    31                                           
+    32         1          1.0      1.0      0.0          self.OBS_LOC, self.OBS_TIME = OBS_INFO  # astropy EarthLocation and Time objects
+    33         1        352.2    352.2      0.0          self.AA = AltAz(location=self.OBS_LOC, obstime=self.OBS_TIME)  # AltAz frame from OBS_LOC and OBS_TIME
+    34                                           
+    35         1          0.5      0.5      0.0          self.star_list = []
+    36         1          0.5      0.5      0.0          self.stars_above_horizon = []
+    37         1          0.6      0.6      0.0          self.brightest_stars_list = []
+    38         1          0.9      0.9      0.0          time1 = time.time()
+    39         1          0.3      0.3      0.0          self.STAR_DATA = STAR_DATA  # path (str) to star.csv
+    40         1      62244.0  62244.0      0.0          star_df = pd.read_csv(STAR_DATA, keep_default_na=False, nrows=15000)  # Note: change this 15000 to some variable
+    41                                           
+    42     15000      21200.7      1.4      0.0          for i in star_df.index:
+    43     15000  126265980.4   8417.7     99.7              self.add_star(Star(star_df['ra'][i], star_df['dec'][i], star_df['mag'][i], star_df['proper'][i]))
+    44         1          1.9      1.9      0.0          time2 = time.time()
+    45         1         22.3     22.3      0.0          print(f'Time: {time2-time1}')
+    46         1          1.7      1.7      0.0          self.min_star_size = .5
+    47         1          0.4      0.4      0.0          self.max_star_size = 7
+    48                                           
+    49         1          0.4      0.4      0.0          self.sso_list = []  # Note: probably needs a rename, something like 'active_sso_list' ?
+    50         1          1.0      1.0      0.0          self.possible_sso = ['sun', 'moon', 'mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune']
+    51         1          0.7      0.7      0.0          self.ssos_above_horizon = []
+    52                                           
+    53         9          5.8      0.6      0.0          for planet in self.possible_sso:
+    54         9     304775.1  33863.9      0.2              self.add_sso(SSO(planet))
+
+Total time: 111.698 s
+File: C:\Users\truma\Documents\GitHub\StarMap\Chart.py
+Function: add_star at line 55
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+    55                                               @profile
+    56                                               def add_star(self, star):
+    57                                                   # Note: these lines could be moved to a general add_preprocess function, but not sure yet
+    58     15000   94556207.9   6303.7     84.7          star_altaz_frame = star.coord.transform_to(self.AA)
+    59     15000   15025425.3   1001.7     13.5          star.az = float(star_altaz_frame.az.to_string(unit=u.rad, decimal=True))
+    60     15000    2094116.4    139.6      1.9          star.alt = float(star_altaz_frame.alt.to_string(unit=u.deg, decimal=True))
+    61                                           
+    62      7505       3844.5      0.5      0.0          if star.alt > 0:
+    63      7505       7152.8      1.0      0.0              self.stars_above_horizon.append(star)
+    64                                           
+    65     15000      11514.6      0.8      0.0          self.star_list.append(star)
+
+Total time: 0.0251442 s
+File: C:\Users\truma\Documents\GitHub\StarMap\Chart.py
+Function: plot_star at line 160
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+   160                                               @profile
+   161                                               def plot_star(self, star, mag_info):
+   162      2500       8756.1      3.5     34.8          self.plot_preprocess_obj(star)
+   163                                                   # Note: This works great, but if I wanted to plot again with different
+   164                                                   #  visual parameters, I'd have to re-preprocess, which doesn't need to happen since the xy
+   165                                                   #  coords would be the same
+   166      2500        583.8      0.2      2.3          min_mag, max_mag = mag_info
+   167                                                   # make line below its own function?
+   168      5000       1230.0      0.2      4.9          star.size = self.max_star_size * (
+   169      5000       1673.3      0.3      6.7                  1 - (star.mag - min_mag) / (max_mag - min_mag)) + self.min_star_size
+   170      2500       1019.7      0.4      4.1          star.size *= self.SCALING_CONSTANT
+   171      2500      11881.3      4.8     47.3          self.chartSVG.circle(star.x, star.y, star.size, star.color, fill="url(#StarGradient1)", width=0)
+
+Total time: 126.721 s
+File: main.py
+Function: main at line 37
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+    37                                           @profile
+    38                                           def main():
+    39         1          0.4      0.4      0.0      current_time = True
+    40         1          0.2      0.2      0.0      if current_time:
+    41         1       1154.7   1154.7      0.0          cur_time = Time("T".join(str(datetime.datetime.now()).split(" "))) - utcoffset
+    42         1          0.3      0.3      0.0      size = 1500
+    43         1  126665863.9 126665863.9    100.0      radChart1 = RadialChart((OBS_LOC, cur_time if current_time else OBS_TIME_AP), (size, size*1.2),
+    44         1          0.1      0.1      0.0                              'Star CSV/hygdata_v3.csv')
+    45         1      52359.5  52359.5      0.0      radChart1.plot(num_stars=2500, star_labels=20)
+    46         1       1589.5   1589.5      0.0      radChart1.export("RadChart1.svg")
+

@@ -5,28 +5,30 @@ XML_HEADER = '<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n'
 SVG_FOOTER = '</svg>'
 
 
+# TODO: Change parameters of the functions to match each other's order
 # https://www.w3schools.com/graphics/svg_intro.asp
 class SVG:
     def __init__(self, height, width):
         self.elements = []
         self.h, self.w = height, width
-        self.SVG_HEADER = '<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="{0}" width="{1}">\n'.format(self.h, self.w) + '<defs><radialGradient id="StarGradient1"><stop offset="70%" stop-color="white"/><stop offset="100%" stop-color="white" stop-opacity="0.25" /></radialGradient></defs>\n'
 
+        self.SVG_HEADER = '<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="{0}" width="{1}">\n'.format(self.h, self.w) + '<defs><radialGradient id="StarGradient1"><stop offset="70%" stop-color="white"/><stop offset="100%" stop-color="white" stop-opacity="0.25" /></radialGradient></defs>\n'
+        # NOTE: Can make background color a parameter of the __init__
         self.background = '<rect width="100%" height="100%" fill="#0e218a" />'
         self.elements.append(self.background)
 
     def __repr__(self):
         return f'SVG | Elements: {len(self.elements)} | Canvas Size: ({self.h}, {self.w})'
 
-    def line(self, x1, y1, x2, y2, color="white", width="1", opacity="1"):
+    def line(self, x1, y1, x2, y2, color="white", width=1, opacity=1):
         self.elements.append(f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" stroke="{color}"  stroke-width="{width}"'
                              f' opacity="{opacity}"/>')
 
-    def circle(self, cx, cy, r, color="white", width=1.0, fill="white", opacity="1"):
+    def circle(self, cx, cy, r, color="white", width=1.0, fill="white", opacity=1):
         self.elements.append(f'<circle cx="{cx}" cy="{self.h-cy}" r="{r}" stroke="{color}" stroke-width="{width}"'
                              f' fill="{fill if fill else "none"}" opacity="{opacity}"/>')
 
-    def rect(self, x, y, width, height, color="white", fill="white", stroke_width="1", rx=0):
+    def rect(self, x, y, width, height, color="white", fill="white", stroke_width=1, rx=0):
         self.elements.append(f'<rect x="{x}" y="{self.h-y}"  width="{width}" height="{height}" stroke="{color}"'
                              f' stroke-width="{stroke_width}" fill="{fill}" rx="{rx}" />')
 

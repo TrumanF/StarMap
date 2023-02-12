@@ -1,0 +1,40 @@
+Time: 123.838711977005
+Successfully generated SVG
+Wrote profile results to main.py.lprof
+Timer unit: 1e-06 s
+
+Total time: 109.428 s
+File: C:\Users\truma\Documents\GitHub\StarMap\Chart.py
+Function: add_star at line 54
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+    54                                               @profile
+    55                                               def add_star(self, star):
+    56                                                   # Note: these lines could be moved to a general add_preprocess function, but not sure yet
+    57     15000   92672177.6   6178.1     84.7          star_altaz_frame = star.coord.transform_to(self.AA)
+    58     15000   14670232.9    978.0     13.4          star.az = float(star_altaz_frame.az.to_string(unit=u.rad, decimal=True))
+    59     15000    2063855.3    137.6      1.9          star.alt = float(star_altaz_frame.alt.to_string(unit=u.deg, decimal=True))
+    60                                           
+    61      7500       3901.4      0.5      0.0          if star.alt > 0:
+    62      7500       6874.5      0.9      0.0              self.stars_above_horizon.append(star)
+    63                                           
+    64     15000      11361.7      0.8      0.0          self.star_list.append(star)
+
+Total time: 124.193 s
+File: main.py
+Function: main at line 37
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+    37                                           @profile
+    38                                           def main():
+    39         1          0.4      0.4      0.0      current_time = True
+    40         1          0.2      0.2      0.0      if current_time:
+    41         1       1126.6   1126.6      0.0          cur_time = Time("T".join(str(datetime.datetime.now()).split(" "))) - utcoffset
+    42         1          0.3      0.3      0.0      size = 1500
+    43         1  124149681.0 124149681.0    100.0      radChart1 = RadialChart((OBS_LOC, cur_time if current_time else OBS_TIME_AP), (size, size*1.2),
+    44         1          0.1      0.1      0.0                              'Star CSV/hygdata_v3.csv')
+    45         1      40635.3  40635.3      0.0      radChart1.plot(num_stars=2500, star_labels=20)
+    46         1       1536.8   1536.8      0.0      radChart1.export("RadChart1.svg")
+
