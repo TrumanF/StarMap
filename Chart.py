@@ -12,7 +12,7 @@ from astropy.coordinates import AltAz, EarthLocation, get_body
 from astropy import units as u
 import time
 
-import asyncio
+from multiprocessing import Pool
 
 
 def polar_to_cartesian(r, theta):
@@ -20,7 +20,6 @@ def polar_to_cartesian(r, theta):
 
 
 # NOTE: Add_star and add_sso are very similar, could be one function?
-
 class Chart:
     def __init__(self, OBS_INFO, CANVAS_INFO, STAR_DATA):
 
@@ -39,13 +38,16 @@ class Chart:
         time1 = time.time()
 
         self.STAR_DATA = STAR_DATA  # path (str) to star.csv
-        star_df = pd.read_csv(STAR_DATA, keep_default_na=False, nrows=15000)  # Note: change this 15000 to some variable
-        async def dothetask():
-            tasks = [asyncio.create_task(self.add_star(Star(star_df['ra'][i], star_df['dec'][i], star_df['mag'][i], star_df['proper'][i]))) for i in star_df.index]
-            await asyncio.wait(tasks)
-        # for i in star_df.index:
-        #     self.add_star(Star(star_df['ra'][i], star_df['dec'][i], star_df['mag'][i], star_df['proper'][i]))
-        asyncio.run(dothetask())
+        self.star_df = pd.read_csv(STAR_DATA, keep_default_na=False, nrows=20000)  # Note: change this 15000 to some variable
+
+        # NOTE: Read more about pool.map_async()
+        with Pool() as pool:
+            result = pool.map_async(self.process_star, self.star_df.index)
+            pool.close()
+            pool.join()
+        for star in result.get():
+            self.add_star(star)
+
         time2 = time.time()
         print(f'Time: {time2-time1}')
         print(len(self.star_list))
@@ -59,17 +61,19 @@ class Chart:
         for planet in self.possible_sso:
             self.add_sso(SSO(planet))
 
-    async def add_star(self, star):
-        # Note: these lines could be moved to a general add_preprocess function, but not sure yet
-        star_altaz_frame = star.coord.transform_to(self.AA)
-        star.az = float(star_altaz_frame.az.to_string(unit=u.rad, decimal=True))
-        star.alt = float(star_altaz_frame.alt.to_string(unit=u.deg, decimal=True))
-
+    def add_star(self, star):
         if star.alt > 0:
             self.stars_above_horizon.append(star)
-
         self.star_list.append(star)
 
+    def process_star(self, i):
+        new_star = Star(self.star_df['ra'][i], self.star_df['dec'][i], self.star_df['mag'][i], self.star_df['proper'][i])
+        # Note: these lines could be moved to a general add_preprocess function, but not sure yet
+        star_altaz_frame = new_star.coord.transform_to(self.AA)
+        new_star.az = float(star_altaz_frame.az.to_string(unit=u.rad, decimal=True))
+        new_star.alt = float(star_altaz_frame.alt.to_string(unit=u.deg, decimal=True))
+
+        return new_star
 
     def brightest_stars(self):
         self.brightest_stars_list = sorted(self.stars_above_horizon, key=lambda star: star.mag)
@@ -163,7 +167,6 @@ class RadialChart(Chart):
         if SSOs:
             self.plot_ssos(SSOs)
 
-    # TODO: Get rid of min and max_mag, get min_max mag once we know what subset we're plotting
 
     def plot_star(self, star, mag_info):
         self.plot_preprocess_obj(star)
@@ -178,8 +181,9 @@ class RadialChart(Chart):
         self.chartSVG.circle(star.x, star.y, star.size, star.color, fill="url(#StarGradient1)", width=0)
 
     # TODO: Make better 'labels' flag, maybe can specify by filter which stars get labels
+    #  Use a similar sorted() thing, to specify highest mag labs, ra, dec, etc... Random labels too
     # TODO: Change num_stars to be able to specify that you want all available stars to be plotted
-    def plot_stars(self, num_stars=0, sort_filter=None, reverse_flag=False, labels=None):
+    def plot_stars(self, num_stars, sort_filter=None, reverse_flag=False, labels=None):
         sorted_stars_to_plot = self.sorted_stars(sort_filter, reverse_flag)
         # NOTE: This can be made faster in some scenarios where sorted_stars already is sorted by mag
         sorted_stars_mag_sorted = [st.mag for st in sorted(sorted_stars_to_plot, key=lambda s: s.mag)]
