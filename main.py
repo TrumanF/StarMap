@@ -3,6 +3,7 @@ from astropy.coordinates import EarthLocation
 from astropy.time import Time
 from astropy import units as u
 import datetime
+import line_profiler
 # TODO: Make this information read from a .txt file or something, that way I can generate like 4 plots at a time
 # input all location and time data
 OBS_LAT = 37.716452
@@ -24,11 +25,15 @@ OBS_TIME_AP = Time(f'{OBS_DATE}T{OBS_TIME}') - utcoffset
 # TODO: Load an observing plan and draw connections between those stars with redline
 # TODO: Be able to generate sections of sky
 # TODO: Revise SVG gradient, it doesn't look that good
+# TODO: Check if text overlaps with other text and fix that, also check if items go outside main chart
+# TODO: Need some sort of universal scaling factor, so I can make the plot smaller larger and everything else follows
 # TODO: PNG and GIF support
+# TODO: Start thinking about optimization, it's getting a little bit slow, especially with high star count
 # TODO: Generate metadata in SVG that displays basic info about the plot, loc, time/date,
 #  sorting filter used, number of stars, etc.
 # TODO: Think about how I want to interact with Chart class, should I give star data immediately?
 #  Or should I pass it in when I want to plot? What are the differences? Advantages?
+
 
 def main():
     current_time = True
@@ -43,3 +48,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

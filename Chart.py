@@ -12,12 +12,15 @@ from astropy.coordinates import AltAz, EarthLocation, get_body
 from astropy import units as u
 import time
 
+import asyncio
+
 
 def polar_to_cartesian(r, theta):
     return r * math.cos(theta), r * math.sin(theta)
 
 
 # NOTE: Add_star and add_sso are very similar, could be one function?
+
 class Chart:
     def __init__(self, OBS_INFO, CANVAS_INFO, STAR_DATA):
 
@@ -37,13 +40,15 @@ class Chart:
 
         self.STAR_DATA = STAR_DATA  # path (str) to star.csv
         star_df = pd.read_csv(STAR_DATA, keep_default_na=False, nrows=15000)  # Note: change this 15000 to some variable
-        for i in star_df.index:
-            self.add_star(Star(star_df['ra'][i], star_df['dec'][i], star_df['mag'][i], star_df['proper'][i]))
-
+        async def dothetask():
+            tasks = [asyncio.create_task(self.add_star(Star(star_df['ra'][i], star_df['dec'][i], star_df['mag'][i], star_df['proper'][i]))) for i in star_df.index]
+            await asyncio.wait(tasks)
+        # for i in star_df.index:
+        #     self.add_star(Star(star_df['ra'][i], star_df['dec'][i], star_df['mag'][i], star_df['proper'][i]))
+        asyncio.run(dothetask())
         time2 = time.time()
         print(f'Time: {time2-time1}')
         print(len(self.star_list))
-
         self.min_star_size = .5
         self.max_star_size = 7
 
@@ -54,7 +59,7 @@ class Chart:
         for planet in self.possible_sso:
             self.add_sso(SSO(planet))
 
-    def add_star(self, star):
+    async def add_star(self, star):
         # Note: these lines could be moved to a general add_preprocess function, but not sure yet
         star_altaz_frame = star.coord.transform_to(self.AA)
         star.az = float(star_altaz_frame.az.to_string(unit=u.rad, decimal=True))
@@ -64,6 +69,7 @@ class Chart:
             self.stars_above_horizon.append(star)
 
         self.star_list.append(star)
+
 
     def brightest_stars(self):
         self.brightest_stars_list = sorted(self.stars_above_horizon, key=lambda star: star.mag)
