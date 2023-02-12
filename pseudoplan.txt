@@ -1,0 +1,13 @@
+chart parent
+	chart has location data and create AP transformation
+	add_star (where astro-coordinate transformations happen)
+		star should come out with (RA, DEC) and (ALT,AZ)
+	add_sso (where astro-coordinate transformations happen)
+	change coordinates to xy image coordinates function (abstract)
+	plot - take paper coordinates and put on paper (abstract, cause each plot will handle star attributes differently)
+	    i.e. it will take the star max and min magnitude and do different thing with it
+	radialchart
+	squarechart
+body parent?
+	star
+	sso
