@@ -74,7 +74,7 @@ def main():
 
     # plot stars from .csv
     stars = []
-    stars_file = open("UrsaMajor.csv", "r", encoding='utf-8-sig')
+    stars_file = open("constellations/UrsaMajor.csv", "r", encoding='utf-8-sig')
     for line in stars_file.readlines():
         star_data = line.strip("\n").split(",")
         stars.append(Star(star_data[0], star_data[1], star_data[2]))
