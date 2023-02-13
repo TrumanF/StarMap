@@ -8,13 +8,13 @@ SVG_FOOTER = '</svg>'
 # TODO: Change parameters of the functions to match each other's order
 # https://www.w3schools.com/graphics/svg_intro.asp
 class SVG:
-    def __init__(self, height, width):
+    def __init__(self, height, width, background_color="#0e218a"):
         self.elements = []
         self.h, self.w = height, width
-
+        self.background_color = background_color
         self.SVG_HEADER = '<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="{0}" width="{1}">\n'.format(self.h, self.w) + '<defs><radialGradient id="StarGradient1"><stop offset="70%" stop-color="white"/><stop offset="100%" stop-color="white" stop-opacity="0.25" /></radialGradient></defs>\n'
         # NOTE: Can make background color a parameter of the __init__
-        self.background = '<rect width="100%" height="100%" fill="#0e218a" />'
+        self.background = f'<rect width="100%" height="100%" fill="{self.background_color}" />'
         self.elements.append(self.background)
 
     def __repr__(self):
