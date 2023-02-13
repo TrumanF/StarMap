@@ -4,7 +4,7 @@ import codecs
 XML_HEADER = '<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n'
 SVG_FOOTER = '</svg>'
 
-
+# Note: When drawing curves, ask for input of list of points on that curve, with high resolution
 # TODO: Change parameters of the functions to match each other's order
 # https://www.w3schools.com/graphics/svg_intro.asp
 class SVG:

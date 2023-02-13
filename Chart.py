@@ -20,8 +20,12 @@ def polar_to_cartesian(r, theta):
     return r * math.cos(theta), r * math.sin(theta)
 
 
+# TODO: SquareChart doesn't actually need location, so take that out of the Chart class and move to RadialChart
+# TODO: Rename RadialChart to HemisphereChart or AzimuthalEQ or something
 # Note: Add_star and add_sso are very similar, could be one function?
 class Chart:
+    # Note: Read this shit
+    # https://www.projectpluto.com/project.htm
     def __init__(self, OBS_INFO, CANVAS_INFO):
 
         self.CANVAS_X, self.CANVAS_Y = CANVAS_INFO
@@ -108,6 +112,7 @@ class Chart:
 
 
 class RadialChart(Chart):
+    # Uses Azimuthal equidistant projection
     def __init__(self, OBS_INFO, CANVAS_INFO):
         super().__init__(OBS_INFO, CANVAS_INFO)
         self.MAIN_CIRCLE_R = (self.CANVAS_Y * .9) / 2  # Note: Change multiplier to parameter

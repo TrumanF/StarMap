@@ -1,0 +1,5 @@
+Requirements:
+    Top/bottom edge parallel with the equator, top edge always closer to northern hemisphere
+    RA on x coords, Dec on y coords
+    Curved lines of Dec since we're zoomed into a portion of the celestial sphere
+        RA are always straight lines (?)
