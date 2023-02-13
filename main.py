@@ -8,7 +8,7 @@ import time
 # input all location and time data
 OBS_LAT = 37.716452
 OBS_LONG = -122.496369
-OBS_TIME = "12:00:00"
+OBS_TIME = "14:00:00"
 OBS_DATE = "2023-02-11"
 OBS_LOC = EarthLocation(lat=OBS_LAT, lon=OBS_LONG, height=100*u.m)
 utcoffset = -8*u.hour
@@ -35,22 +35,20 @@ OBS_TIME_AP = Time(f'{OBS_DATE}T{OBS_TIME}') - utcoffset
 #  Or should I pass it in when I want to plot? What are the differences? Advantages?
 # TODO: Add DSOs and plot their apparent sizes with ovals
 # TODO: Add some sort of gradient on the star based on their variability?
-
+# TODO: Generally revisit all places where a canvas size is determined and reevaluate
 def main():
     current_time = True
     cur_time = Time("T".join(str(datetime.datetime.now()).split(" "))) - utcoffset
     size = 1500
+
     time1 = time.time()
-    radChart1 = RadialChart((OBS_LOC, cur_time if current_time else OBS_TIME_AP), (size, size*1.2))
+
+    radChart1 = RadialChart((OBS_LOC, cur_time if current_time else OBS_TIME_AP), (size*1.2, size))
     radChart1.plot(num_stars=2500, star_labels=30, sort_filters=['mag'], reverse_flag=False)
     radChart1.export("RadChart1.svg")
+
     time2 = time.time()
-    radChart2 = RadialChart((OBS_LOC, OBS_TIME_AP), (size, size*1.2))
-    radChart2.plot(num_stars=2000, star_labels=20, sort_filters=['mag'], reverse_flag=False)
-    radChart2.export("RadChart2.svg")
-    time3 = time.time()
-    print(f'First chart time: {time2-time1}')
-    print(f'Entire script time: {time3-time1}')
+    print(f'Entire script time: {time2-time1}')
 
 
 if __name__ == "__main__":

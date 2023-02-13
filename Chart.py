@@ -15,9 +15,6 @@ from astropy import units as u
 
 from multiprocessing import Pool
 
-#  Will be populated the first time a chart object is created, then will supply stars for any subsequent Chart
-# global_star_list = []
-
 
 def polar_to_cartesian(r, theta):
     return r * math.cos(theta), r * math.sin(theta)
@@ -27,8 +24,8 @@ def polar_to_cartesian(r, theta):
 class Chart:
     def __init__(self, OBS_INFO, CANVAS_INFO):
 
-        self.CANVAS_Y, self.CANVAS_X = CANVAS_INFO
-        self.chartSVG = SVG(self.CANVAS_Y, self.CANVAS_X)  # NOTE: Consider making this abstract
+        self.CANVAS_X, self.CANVAS_Y = CANVAS_INFO
+        self.chartSVG = SVG(self.CANVAS_X, self.CANVAS_Y)  # NOTE: Consider making this abstract
         self.CHART_ELEMENT_OPACITY = .25
         self.CHART_ELEMENT_WIDTH = 2
 
@@ -41,6 +38,7 @@ class Chart:
         self.brightest_stars_list = []
 
         self.star_list = []
+
         # NOTE: Read more about pool.map_async()
         with Pool() as pool:
             result = pool.map_async(self.process_star, self.star_df.index)
@@ -59,7 +57,8 @@ class Chart:
         for planet in self.possible_sso:
             self.add_sso(SSO(planet))
 
-    # This function isn't abstract but is overriden depending on the needs of the child chart
+    # Note: This function isn't abstract but is overriden depending on the needs of the child chart
+    #  Maybe it should be?
     def add_star(self, star):
         # Accepts Star object and adds to main star_list
         self.star_list.append(star)

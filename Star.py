@@ -3,7 +3,7 @@ from astropy.coordinates import SkyCoord
 
 class Star:
     def __init__(self, ra, dec, mag, star_id, distance=None, name=None, con=None, color="white"):
-        self.ra = float(ra) * 15  # degrees
+        self.ra = float(ra) * 15  # Note: comes in as Hour angle so convert to degrees by multiplying 15
         self.dec = float(dec)  # degrees
         self.mag = float(mag)
         self.id = star_id

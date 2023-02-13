@@ -8,7 +8,7 @@ SVG_FOOTER = '</svg>'
 # TODO: Change parameters of the functions to match each other's order
 # https://www.w3schools.com/graphics/svg_intro.asp
 class SVG:
-    def __init__(self, height, width, background_color="#0e218a"):
+    def __init__(self, width, height, background_color="#0e218a"):
         self.elements = []
         self.h, self.w = height, width
         self.background_color = background_color
