@@ -5,10 +5,10 @@ class Star:
     def __init__(self, ra, dec, mag, star_id, distance=None, name=None, con=None, color="white"):
         self.ra = float(ra) * 15  # Note: comes in as Hour angle so convert to degrees by multiplying 15
         self.dec = float(dec)  # degrees
-        self.mag = float(mag)
+        self.mag = float(mag)  # unit-less
         self.id = star_id
-        self.dist = distance
-        self.con = con
+        self.dist = distance  # parsec
+        self.con = con  # string: shortened name of constellation
 
         self.az = None  # radians
         self.alt = None  # degrees
@@ -26,5 +26,6 @@ class Star:
 
     def __repr__(self):
         return f"({self.name if self.name else 'No name':^10} | RA/Dec: {str((self.ra, self.dec)):^38} | " \
-               f"Alt/Az: {str((self.alt, self.az)):^30} | MAG: {self.mag:^10} | Distance (parsec): {self.dist:^20} | \n"
+               f"Alt/Az: {str((self.alt, self.az)):^30} | MAG: {self.mag:^10} | Distance (parsec): {self.dist:^20} | " \
+               f"X/Y: {str((self.x, self.y)):^20}\n"
 

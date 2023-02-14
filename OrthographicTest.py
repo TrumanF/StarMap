@@ -1,16 +1,20 @@
 import math
 from SVG import SVG
 import numpy as np
+
+
 def degree_to_rad(angle_list):
     return [math.radians(x) for x in angle_list]
+
+
 CANVAS_X = 1800
 CANVAS_Y = 1500
 chart_center = (CANVAS_X/2, CANVAS_Y/2)
 chartSVG = SVG(CANVAS_X, CANVAS_Y)
 
 
-ra_scope = degree_to_rad((0, 4*15))
-dec_scope = degree_to_rad((-70, -40))
+ra_scope = degree_to_rad((0, 5*15))
+dec_scope = degree_to_rad((-70, -45))
 print(ra_scope)
 print(dec_scope)
 ra_center = (ra_scope[0] + ra_scope[1])/2

@@ -1,7 +1,8 @@
-from Chart import RadialChart
+from Chart import RadialChart, SquareChart
 from astropy.coordinates import EarthLocation
 from astropy.time import Time
 from astropy import units as u
+from Area import Area
 import datetime
 import time
 # TODO: Make this information read from a .txt file or something, that way I can generate like 4 plots at a time
@@ -43,10 +44,14 @@ def main():
 
     time1 = time.time()
 
-    radChart1 = RadialChart((OBS_LOC, cur_time if current_time else OBS_TIME_AP), (size*1.2, size))
-    radChart1.plot(num_stars=2500, star_labels=30, sort_filters=['mag'], reverse_flag=False)
-    radChart1.export("RadChart1.svg")
+    # rad_chart1 = RadialChart((OBS_LOC, cur_time if current_time else OBS_TIME_AP), (size*1.2, size))
+    # rad_chart1.plot(num_stars=2500, star_labels=30, sort_filters=['mag'], reverse_flag=False)
+    # rad_chart1.export("RadChart1.svg")
+    area = Area((0, 5*15), (-70, -45))
 
+    squareChart1 = SquareChart((OBS_LOC, cur_time if current_time else OBS_TIME_AP), (size*1.2, size), area)
+    squareChart1.plot(num_stars=2500, star_labels=30, sort_filters=['mag'], reverse_flag=False)
+    squareChart1.export("SquareChart1.svg")
     time2 = time.time()
     print(f'Entire script time: {time2-time1}')
 

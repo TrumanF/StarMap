@@ -29,6 +29,7 @@ class Chart:
     def __init__(self, OBS_INFO, CANVAS_INFO):
 
         self.CANVAS_X, self.CANVAS_Y = CANVAS_INFO
+        self.CANVAS_CENTER = (self.CANVAS_X/2, self.CANVAS_Y/2)
         self.chartSVG = SVG(self.CANVAS_X, self.CANVAS_Y)  # NOTE: Consider making this abstract
         self.CHART_ELEMENT_OPACITY = .25
         self.CHART_ELEMENT_WIDTH = 2
@@ -37,10 +38,9 @@ class Chart:
         self.AA = AltAz(location=self.OBS_LOC, obstime=self.OBS_TIME)  # AltAz frame from OBS_LOC and OBS_TIME
 
         self.star_df = pd.read_csv('Star CSV/hygdata_v3.csv', keep_default_na=False,
-                                   nrows=10000)  # Note: change this magic number to some variable
-        self.stars_above_horizon = []
-        self.brightest_stars_list = []
+                                   nrows=5000)  # Note: change this magic number to some variable
 
+        self.stars_above_horizon = []  # Note: This should exist only in RadialChart
         self.star_list = []
 
         # NOTE: Read more about pool.map_async()
@@ -56,7 +56,7 @@ class Chart:
 
         self.sso_list = []  # Note: probably needs a rename, something like 'active_sso_list' ?
         self.possible_sso = ['sun', 'moon', 'mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune']
-        self.ssos_above_horizon = []
+        self.ssos_above_horizon = []  # Note: This should exist only in RadialChart
 
         for planet in self.possible_sso:
             self.add_sso(SSO(planet))
@@ -77,10 +77,11 @@ class Chart:
 
         return new_star
 
-    def sort_stars(self, keys, reverse_flag=False):
+    # Note: This method is probably static, deal with that, or think about why it isn't
+    def sort_stars(self, list_to_sort, keys, reverse_flag=False):
         # Note: Should this be stars_above_horizon? Or all stars?
         # Note: Sorted() sucks, can't tell it which key needs to be reversed, just deal with it for now
-        temp = sorted(self.stars_above_horizon, key=operator.attrgetter(*keys), reverse=reverse_flag)
+        temp = sorted(list_to_sort, key=operator.attrgetter(*keys), reverse=reverse_flag)
 
         return temp
 
@@ -107,7 +108,7 @@ class Chart:
         pass
 
     @abc.abstractmethod
-    def plot(self, stars=True, SSOs=True):
+    def plot(self, num_stars=500, SSOs=True):
         pass
 
 
@@ -120,6 +121,7 @@ class RadialChart(Chart):
         self.CHART_ELEMENT_WIDTH *= self.SCALING_CONSTANT
         self.MAIN_CIRCLE_CX = self.CANVAS_X / 2
         self.MAIN_CIRCLE_CY = self.CANVAS_Y / 2
+
         # call function to create base chart
         self.add_base_elements()
 
@@ -200,7 +202,7 @@ class RadialChart(Chart):
         if type(sort_filters) is not list:
             sort_filters = [sort_filters.lower()]
         # Note: This affects the plotting size, moved [:num_stars] to for loop when plotting if want universal scale
-        sorted_stars_to_plot = self.sort_stars(sort_filters, reverse_flag)[:num_stars]
+        sorted_stars_to_plot = self.sort_stars(self.stars_above_horizon, sort_filters, reverse_flag)[:num_stars]
         # Note: This can be made faster in some scenarios where sorted_stars already is sorted by mag
         sorted_stars_mag_sorted = [st.mag for st in sorted(sorted_stars_to_plot, key=lambda s: s.mag)]
         min_mag = min(sorted_stars_mag_sorted)
@@ -241,33 +243,87 @@ class RadialChart(Chart):
 
 
 class SquareChart(Chart):
-    def __init__(self, OBS_INFO, CANVAS_INFO):
+    def __init__(self, OBS_INFO, CANVAS_INFO, area):
         super().__init__(OBS_INFO, CANVAS_INFO)
+        self.area_center = area.center  # degrees
+        self.ra_center, self.dec_center = self.area_center  # degrees
+        self.RA_SCOPE = area.RA_SCOPE  # tuple, degrees
+        self.DEC_SCOPE = area.DEC_SCOPE  # tuple, degrees
+        self.RA_RANGE = area.RA_RANGE  # float, degrees
+        self.DEC_RANGE = area.DEC_RANGE  # float, degrees
+        self.SCALE = 750  # TODO: This number has to come from the generation of the chart somehow
         # call function to create base chart
         self.add_base_elements()
 
+        self.stars_in_range = []
+        self.find_stars_in_range()
+
+    def find_stars_in_range(self):
+        for star in self.star_list:
+            if self.RA_SCOPE[0] < star.ra < self.RA_SCOPE[1] and self.DEC_SCOPE[0] < star.dec < self.DEC_SCOPE[1]:
+                self.stars_in_range.append(star)
+
     def add_base_elements(self):
-        pass
+        # Note: create path option in SVG to draw base path
+        ra_space = np.linspace(self.RA_SCOPE[0], self.RA_SCOPE[1], 100)
+        dec_space = np.linspace(self.DEC_SCOPE[0], self.DEC_SCOPE[1], 100)
+
+        for ra in ra_space:
+            for dec_samp in self.DEC_SCOPE:
+                point = self.ra_dec_to_xy(math.radians(ra), math.radians(dec_samp))
+                self.chartSVG.circle(point[0]*self.SCALE + self.CANVAS_CENTER[0], point[1]*self.SCALE + self.CANVAS_CENTER[1], 3)
+        for dec in dec_space:
+            for ra_samp in self.RA_SCOPE:
+                point = self.ra_dec_to_xy(math.radians(ra_samp), math.radians(dec))
+                self.chartSVG.circle(point[0]*self.SCALE + self.CANVAS_CENTER[0], point[1]*self.SCALE + self.CANVAS_CENTER[1], 3)
 
     def plot_preprocess_obj(self, cel_obj):
-        pass
+        cel_obj.x, cel_obj.y = self.ra_dec_to_xy(math.radians(cel_obj.ra), math.radians(cel_obj.dec))
 
-    def plot(self, stars=True, SSOs=True):
-        pass
+    def plot(self, num_stars=500, SSOs=True, sort_filters='mag', reverse_flag=False, star_labels=None):
+        if num_stars:
+            self.plot_stars(num_stars, sort_filters, reverse_flag, star_labels)
+        # if SSOs:
+        #     self.plot_ssos(SSOs)
 
+    def ra_dec_to_xy(self, ra, dec):
+        # ra and dec input in radians
+        delta_ra = ra - self.ra_center
+        x = math.cos(dec) * math.sin(delta_ra)
+        y = math.sin(dec) * math.cos(self.dec_center) - math.cos(dec) * math.cos(delta_ra) * math.sin(self.dec_center)
+        # Note: Should I scale values here or later?
+        return x, y
 
-def test():
-    OBS_LAT = 37.716452
-    OBS_LONG = -122.496369
-    OBS_TIME = "13:00:00"
-    OBS_DATE = "2023-02-11"
-    OBS_LOC = EarthLocation(lat=OBS_LAT, lon=OBS_LONG, height=100 * u.m)
-    utcoffset = -8 * u.hour
-    OBS_TIME = Time(f'{OBS_DATE}T{OBS_TIME}') - utcoffset
+    def plot_star(self, star, mag_info):
+        self.plot_preprocess_obj(star)
+        min_mag, max_mag = mag_info
+        # make line below its own function?
+        star.size = self.max_star_size * (
+                1 - (star.mag - min_mag) / (max_mag - min_mag)) + self.min_star_size
+        self.chartSVG.circle(star.x*self.SCALE + self.CANVAS_CENTER[0], star.y*self.SCALE + self.CANVAS_CENTER[1], star.size,
+                             star.color, fill="url(#StarGradient1)", width=0)
 
-    testRad = RadialChart((OBS_LOC, OBS_TIME), (1500, 1800), 'Star CSV/stars_labels.csv')
-    print(testRad.sorted_stars('mag')[:500])
+    def plot_stars(self, num_stars, sort_filters=None, reverse_flag=False, labels=None):
+        if type(sort_filters) is not list:
+            sort_filters = [sort_filters.lower()]
+        # Note: This affects the plotting size, moved [:num_stars] to for loop when plotting if want universal scale
+        sorted_stars_to_plot = self.sort_stars(self.stars_in_range, sort_filters, reverse_flag)[:num_stars]
+        # Note: This can be made faster in some scenarios where sorted_stars already is sorted by mag
+        sorted_stars_mag_sorted = [st.mag for st in sorted(sorted_stars_to_plot, key=lambda s: s.mag)]
+        min_mag = min(sorted_stars_mag_sorted)
+        max_mag = max(sorted_stars_mag_sorted)
+        # Check if requested number of stars is greater than amount available to be on plot
+        if num_stars > len(sorted_stars_to_plot):
+            num_stars = len(sorted_stars_to_plot) - 1
+            print(f"Number of stars requested is greater than available to plot, setting number to {num_stars}")
+        for star in sorted_stars_to_plot:
+            self.plot_star(star, (min_mag, max_mag))
 
+        # Note: Come back to labels
+        # if labels:
+        #     for star in sorted_stars_to_plot[:num_stars][:labels]:
+        #         self.chartSVG.text(star.x, star.y, star.name.capitalize() if star.name else star.id, color=star.color, dx=5 + star.size,
+        #                            size=15*self.SCALING_CONSTANT)
 
-if __name__ == "__main__":
-    test()
+    def export(self, file_name):
+        self.chartSVG.export(file_name)

@@ -38,7 +38,7 @@ class SVG:
     def export(self, file):
         formatted_elements = [f"\t{element}\n" for element in self.elements]
         codecs.open(f'SVG/{file}', 'w', 'utf-8').writelines([XML_HEADER, self.SVG_HEADER] + formatted_elements + [SVG_FOOTER])
-        print("Successfully generated SVG")
+        print(f"Successfully generated {file}")
 
 
 
