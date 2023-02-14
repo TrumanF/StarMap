@@ -1,8 +1,9 @@
-from Chart import RadialChart, SquareChart
+from Chart import AzimuthalEQHemisphere, OrthographicArea
 from astropy.coordinates import EarthLocation
 from astropy.time import Time
 from astropy import units as u
 from Area import Area
+from Area import ORION_AREA, URSA_MINOR_AREA, BIG_DIPPER_AREA
 import datetime
 import time
 # TODO: Make this information read from a .txt file or something, that way I can generate like 4 plots at a time
@@ -17,7 +18,7 @@ OBS_TIME_AP = Time(f'{OBS_DATE}T{OBS_TIME}') - utcoffset
 
 
 # TODO: Make some class that will generate the base template for me, that way it can have different skins easily
-# TODO: Revisit normalization function for magnitude -> drawing size
+# TODO: Revisit normalization function for magnitude -> drawing size - I think maybe a gentle log scale would be best
 # TODO: Add various legends to show magnitude scale, compass directions, labels for planets and sun/moon
 # TODO: Constellation lines
 # TODO: Constellation boxes/sections
@@ -47,10 +48,9 @@ def main():
     # rad_chart1 = RadialChart((OBS_LOC, cur_time if current_time else OBS_TIME_AP), (size*1.2, size))
     # rad_chart1.plot(num_stars=2500, star_labels=30, sort_filters=['mag'], reverse_flag=False)
     # rad_chart1.export("RadChart1.svg")
-    area = Area((0, 5*15), (-70, -45))
 
-    squareChart1 = SquareChart((OBS_LOC, cur_time if current_time else OBS_TIME_AP), (size*1.2, size), area)
-    squareChart1.plot(num_stars=2500, star_labels=30, sort_filters=['mag'], reverse_flag=False)
+    squareChart1 = OrthographicArea((OBS_LOC, cur_time if current_time else OBS_TIME_AP), (size * 1.2, size), ORION_AREA)
+    squareChart1.plot(num_stars=2000, star_labels=30, sort_filters=['mag'], reverse_flag=False)
     squareChart1.export("SquareChart1.svg")
     time2 = time.time()
     print(f'Entire script time: {time2-time1}')

@@ -38,7 +38,7 @@ class Chart:
         self.AA = AltAz(location=self.OBS_LOC, obstime=self.OBS_TIME)  # AltAz frame from OBS_LOC and OBS_TIME
 
         self.star_df = pd.read_csv('Star CSV/hygdata_v3.csv', keep_default_na=False,
-                                   nrows=5000)  # Note: change this magic number to some variable
+                                   nrows=50000)  # Note: change this magic number to some variable
 
         self.stars_above_horizon = []  # Note: This should exist only in RadialChart
         self.star_list = []
@@ -112,7 +112,7 @@ class Chart:
         pass
 
 
-class RadialChart(Chart):
+class AzimuthalEQHemisphere(Chart):
     # Uses Azimuthal equidistant projection
     def __init__(self, OBS_INFO, CANVAS_INFO):
         super().__init__(OBS_INFO, CANVAS_INFO)
@@ -242,40 +242,70 @@ class RadialChart(Chart):
         self.chartSVG.export(file_name)
 
 
-class SquareChart(Chart):
+# TODO: Add SSO support for OrthographicArea
+# Note: The constellations are graphing backwards right now... Can be fixed by returning -x in ra_dec_to_xy
+class OrthographicArea(Chart):
     def __init__(self, OBS_INFO, CANVAS_INFO, area):
         super().__init__(OBS_INFO, CANVAS_INFO)
-        self.area_center = area.center  # degrees
-        self.ra_center, self.dec_center = self.area_center  # degrees
-        self.RA_SCOPE = area.RA_SCOPE  # tuple, degrees
-        self.DEC_SCOPE = area.DEC_SCOPE  # tuple, degrees
-        self.RA_RANGE = area.RA_RANGE  # float, degrees
-        self.DEC_RANGE = area.DEC_RANGE  # float, degrees
-        self.SCALE = 750  # TODO: This number has to come from the generation of the chart somehow
+        self.area_center = area.center  # rads
+        self.ra_center, self.dec_center = self.area_center  # rads
+        self.RA_SCOPE = area.RA_SCOPE  # tuple, rads
+        self.DEC_SCOPE = area.DEC_SCOPE  # tuple, rads
+        self.RA_RANGE = area.RA_RANGE  # float, rads
+        self.DEC_RANGE = area.DEC_RANGE  # float, rads
+        self.SCALE = 2000  # TODO: This number has to come from the generation of the chart somehow
         # call function to create base chart
         self.add_base_elements()
 
         self.stars_in_range = []
         self.find_stars_in_range()
 
+        self.min_star_size = .75
+        self.max_star_size = 10
+
     def find_stars_in_range(self):
         for star in self.star_list:
-            if self.RA_SCOPE[0] < star.ra < self.RA_SCOPE[1] and self.DEC_SCOPE[0] < star.dec < self.DEC_SCOPE[1]:
+            if self.RA_SCOPE[0] < math.radians(star.ra) < self.RA_SCOPE[1] and self.DEC_SCOPE[0] < math.radians(star.dec) < self.DEC_SCOPE[1]:
                 self.stars_in_range.append(star)
 
+    # TODO: Instead of plotting a grid of RA/Dec lines, plot 4 of the nearest whole or near-whole multiples of RA/Dec
     def add_base_elements(self):
         # Note: create path option in SVG to draw base path
         ra_space = np.linspace(self.RA_SCOPE[0], self.RA_SCOPE[1], 100)
         dec_space = np.linspace(self.DEC_SCOPE[0], self.DEC_SCOPE[1], 100)
 
-        for ra in ra_space:
-            for dec_samp in self.DEC_SCOPE:
-                point = self.ra_dec_to_xy(math.radians(ra), math.radians(dec_samp))
-                self.chartSVG.circle(point[0]*self.SCALE + self.CANVAS_CENTER[0], point[1]*self.SCALE + self.CANVAS_CENTER[1], 3)
-        for dec in dec_space:
-            for ra_samp in self.RA_SCOPE:
-                point = self.ra_dec_to_xy(math.radians(ra_samp), math.radians(dec))
-                self.chartSVG.circle(point[0]*self.SCALE + self.CANVAS_CENTER[0], point[1]*self.SCALE + self.CANVAS_CENTER[1], 3)
+        ra_sample = np.linspace(self.RA_SCOPE[0], self.RA_SCOPE[1], 6)
+        dec_sample = np.linspace(self.DEC_SCOPE[0], self.DEC_SCOPE[1], 6)
+        # This code needs to be written, it kinda sucks, but it's partially because of SVG.curve()
+
+        for i, dec_samp in enumerate(dec_sample):
+            curve = []
+            if i == 0 or i == len(ra_sample) - 1:
+                width = 5
+                stroke_opacity = 1
+            else:
+                width = 2
+                stroke_opacity = .25
+            for ra in ra_space:
+                point = self.ra_dec_to_xy(ra, dec_samp)
+                point = (point[0] * self.SCALE + self.CANVAS_CENTER[0], -point[1] * self.SCALE + self.CANVAS_CENTER[1])
+                curve.append(point)
+                # self.chartSVG.circle(point[0]*self.SCALE + self.CANVAS_CENTER[0], point[1]*self.SCALE + self.CANVAS_CENTER[1], 3)
+            self.chartSVG.curve(curve, width=width, stroke_opacity=stroke_opacity)
+        for i, ra_samp in enumerate(ra_sample):
+            curve = []
+            if i == 0 or i == len(ra_sample) - 1:
+                width = 5
+                stroke_opacity = 1
+            else:
+                width = 2
+                stroke_opacity = .25
+            for dec in dec_space:
+                point = self.ra_dec_to_xy(ra_samp, dec)
+                point = (point[0] * self.SCALE + self.CANVAS_CENTER[0], -point[1] * self.SCALE + self.CANVAS_CENTER[1])
+                curve.append(point)
+                # self.chartSVG.circle(point[0]*self.SCALE + self.CANVAS_CENTER[0], point[1]*self.SCALE + self.CANVAS_CENTER[1], 3)
+            self.chartSVG.curve(curve, width=width, stroke_opacity=stroke_opacity)
 
     def plot_preprocess_obj(self, cel_obj):
         cel_obj.x, cel_obj.y = self.ra_dec_to_xy(math.radians(cel_obj.ra), math.radians(cel_obj.dec))
@@ -292,7 +322,7 @@ class SquareChart(Chart):
         x = math.cos(dec) * math.sin(delta_ra)
         y = math.sin(dec) * math.cos(self.dec_center) - math.cos(dec) * math.cos(delta_ra) * math.sin(self.dec_center)
         # Note: Should I scale values here or later?
-        return x, y
+        return -x, y
 
     def plot_star(self, star, mag_info):
         self.plot_preprocess_obj(star)
