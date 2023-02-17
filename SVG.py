@@ -8,6 +8,10 @@ SVG_FOOTER = '</svg>'
 # Note: When drawing curves, ask for input of list of points on that curve, with high resolution
 # TODO: Change parameters of the functions to match each other's order
 # TODO: Figure out how to fit bezier curve to set of points
+
+# NOTE: The problem with this class is that I have to flip y-coordinates because of the nature of how images deal with
+#  coordinates. I need to sit down and rethink exactly how I want to do this. Currently, path does not flip y coords.
+
 # https://www.w3schools.com/graphics/svg_intro.asp
 class SVG:
     def __init__(self, width, height, background_color="#0e218a"):
@@ -23,7 +27,7 @@ class SVG:
         return f'SVG | Elements: {len(self.elements)} | Canvas Size: ({self.h}, {self.w})'
 
     def line(self, x1, y1, x2, y2, color="white", width=1, opacity=1):
-        self.elements.append(f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" stroke="{color}"  stroke-width="{width}"'
+        self.elements.append(f'<line x1="{x1}" y1="{self.h-y1}" x2="{x2}" y2="{self.h-y2}" stroke="{color}" stroke-width="{width}"'
                              f' opacity="{opacity}"/>')
 
     def circle(self, cx, cy, r, color="white", width=1.0, fill="white", opacity=1):

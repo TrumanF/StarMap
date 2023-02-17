@@ -32,13 +32,13 @@ class Chart:
         self.CANVAS_CENTER = (self.CANVAS_X/2, self.CANVAS_Y/2)
         self.chartSVG = SVG(self.CANVAS_X, self.CANVAS_Y)  # NOTE: Consider making this abstract
         self.CHART_ELEMENT_OPACITY = .25
-        self.CHART_ELEMENT_WIDTH = 2
+        self.CHART_ELEMENT_WIDTH = 2.5
 
         self.OBS_LOC, self.OBS_TIME = OBS_INFO  # astropy EarthLocation and Time objects
         self.AA = AltAz(location=self.OBS_LOC, obstime=self.OBS_TIME)  # AltAz frame from OBS_LOC and OBS_TIME
 
         self.star_df = pd.read_csv('Star CSV/hygdata_v3.csv', keep_default_na=False,
-                                   nrows=50000)  # Note: change this magic number to some variable
+                                   nrows=5000)  # Note: change this magic number to some variable
 
         self.stars_above_horizon = []  # Note: This should exist only in RadialChart
         self.star_list = []
@@ -118,7 +118,7 @@ class AzimuthalEQHemisphere(Chart):
         super().__init__(OBS_INFO, CANVAS_INFO)
         self.MAIN_CIRCLE_R = (self.CANVAS_Y * .9) / 2  # Note: Change multiplier to parameter
         self.SCALING_CONSTANT = self.MAIN_CIRCLE_R / 675.0  # Based on visual preference from other charts
-        self.CHART_ELEMENT_WIDTH *= self.SCALING_CONSTANT
+        self.CHART_ELEMENT_WIDTH = max(1, self.SCALING_CONSTANT * self.CHART_ELEMENT_WIDTH)
         self.MAIN_CIRCLE_CX = self.CANVAS_X / 2
         self.MAIN_CIRCLE_CY = self.CANVAS_Y / 2
 
@@ -134,7 +134,7 @@ class AzimuthalEQHemisphere(Chart):
         # draw RA line markings at every hour
         ra_line_angles = np.linspace(0, 2 * math.pi, 25)  # 25 segments, so we can ignore the redundant 0 and 2pi
         for angle in ra_line_angles[:-1]:
-            x2, y2 = polar_to_cartesian(self.MAIN_CIRCLE_R, angle)
+            x2, y2 = polar_to_cartesian(self.MAIN_CIRCLE_R, angle + math.pi/2)
             self.chartSVG.line(self.MAIN_CIRCLE_CX, self.MAIN_CIRCLE_CY, x2 + self.MAIN_CIRCLE_CX,
                                y2 + self.MAIN_CIRCLE_CY, "white", width=self.CHART_ELEMENT_WIDTH,
                                opacity=self.CHART_ELEMENT_OPACITY)
@@ -253,7 +253,13 @@ class OrthographicArea(Chart):
         self.DEC_SCOPE = area.DEC_SCOPE  # tuple, rads
         self.RA_RANGE = area.RA_RANGE  # float, rads
         self.DEC_RANGE = area.DEC_RANGE  # float, rads
-        self.SCALE = 2000  # TODO: This number has to come from the generation of the chart somehow
+
+        self.MAX_X_SIZE = (self.CANVAS_X / 2) * .8
+        self.MAX_Y_SIZE = (self.CANVAS_Y / 2) * .8
+        self.BBOX = None
+        self.SCALE = None
+        self.set_scale()
+
         # call function to create base chart
         self.add_base_elements()
 
@@ -262,6 +268,7 @@ class OrthographicArea(Chart):
 
         self.min_star_size = .75
         self.max_star_size = 10
+        # divide the values by 2 since the plot is generated at 0,0 in center of canvas
 
     def find_stars_in_range(self):
         for star in self.star_list:
@@ -269,8 +276,7 @@ class OrthographicArea(Chart):
                 self.stars_in_range.append(star)
 
     # TODO: Instead of plotting a grid of RA/Dec lines, plot 4 of the nearest whole or near-whole multiples of RA/Dec
-    def add_base_elements(self):
-        # Note: create path option in SVG to draw base path
+    def add_base_elements(self, bbox=True):
         ra_space = np.linspace(self.RA_SCOPE[0], self.RA_SCOPE[1], 100)
         dec_space = np.linspace(self.DEC_SCOPE[0], self.DEC_SCOPE[1], 100)
 
@@ -290,7 +296,6 @@ class OrthographicArea(Chart):
                 point = self.ra_dec_to_xy(ra, dec_samp)
                 point = (point[0] * self.SCALE + self.CANVAS_CENTER[0], -point[1] * self.SCALE + self.CANVAS_CENTER[1])
                 curve.append(point)
-                # self.chartSVG.circle(point[0]*self.SCALE + self.CANVAS_CENTER[0], point[1]*self.SCALE + self.CANVAS_CENTER[1], 3)
             self.chartSVG.curve(curve, width=width, stroke_opacity=stroke_opacity)
         for i, ra_samp in enumerate(ra_sample):
             curve = []
@@ -304,8 +309,9 @@ class OrthographicArea(Chart):
                 point = self.ra_dec_to_xy(ra_samp, dec)
                 point = (point[0] * self.SCALE + self.CANVAS_CENTER[0], -point[1] * self.SCALE + self.CANVAS_CENTER[1])
                 curve.append(point)
-                # self.chartSVG.circle(point[0]*self.SCALE + self.CANVAS_CENTER[0], point[1]*self.SCALE + self.CANVAS_CENTER[1], 3)
             self.chartSVG.curve(curve, width=width, stroke_opacity=stroke_opacity)
+        if bbox:
+            self.chartSVG.rect(self.BBOX[0][0], self.BBOX[1][1], self.BBOX[1][0] - self.BBOX[0][0], self.BBOX[1][1] - self.BBOX[0][1], fill="None")
 
     def plot_preprocess_obj(self, cel_obj):
         cel_obj.x, cel_obj.y = self.ra_dec_to_xy(math.radians(cel_obj.ra), math.radians(cel_obj.dec))
@@ -354,6 +360,42 @@ class OrthographicArea(Chart):
         #     for star in sorted_stars_to_plot[:num_stars][:labels]:
         #         self.chartSVG.text(star.x, star.y, star.name.capitalize() if star.name else star.id, color=star.color, dx=5 + star.size,
         #                            size=15*self.SCALING_CONSTANT)
+
+    def set_scale(self):
+        # Note: the 4 lines below are FLAWED
+        lower_coord = self.ra_dec_to_xy(self.RA_SCOPE[0], self.DEC_SCOPE[0])
+        upper_coord = self.ra_dec_to_xy(self.RA_SCOPE[1], self.DEC_SCOPE[1])
+
+        scales = ((self.MAX_X_SIZE / abs(lower_coord[0])), (self.MAX_Y_SIZE / abs(lower_coord[1])))
+        self.SCALE = min(scales)
+
+        ra_space = np.linspace(self.RA_SCOPE[0], self.RA_SCOPE[1], 100)
+        dec_space = np.linspace(self.DEC_SCOPE[0], self.DEC_SCOPE[1], 100)
+
+        all_points = []
+        for dec_samp in [self.DEC_SCOPE[0], self.DEC_SCOPE[1]]:
+            for ra in ra_space:
+                point = self.ra_dec_to_xy(ra, dec_samp)
+                point = (point[0] * self.SCALE + self.CANVAS_CENTER[0], point[1] * self.SCALE + self.CANVAS_CENTER[1])
+                all_points.append(point)
+        for ra_samp in [self.RA_SCOPE[0], self.RA_SCOPE[1]]:
+            for dec in dec_space:
+                point = self.ra_dec_to_xy(ra_samp, dec)
+                point = (point[0] * self.SCALE + self.CANVAS_CENTER[0], point[1] * self.SCALE + self.CANVAS_CENTER[1])
+                all_points.append(point)
+
+        arr = np.array(all_points)
+        max_idx = np.argmax(arr, axis=0)
+        min_idx = np.argmin(arr, axis=0)
+
+        max_x, max_y = arr[max_idx]
+        min_x, min_y = arr[min_idx]
+        print(max_x, max_y)
+        print(min_x, min_y)
+        self.BBOX = ((min_x[0], min_y[1]), (max_x[0], max_y[1]))
+        # self.chartSVG.line(min_x[0], 900, max_x[0], 1000)
+        # self.chartSVG.line(900, min_y[1], 1000, max_y[1])
+        # self.chartSVG.rect(min_x[0], max_y[1], max_x[0] - min_x[0], max_y[1] - min_y[1], fill="None")
 
     def export(self, file_name):
         self.chartSVG.export(file_name)

@@ -45,11 +45,11 @@ def main():
 
     time1 = time.time()
 
-    # rad_chart1 = RadialChart((OBS_LOC, cur_time if current_time else OBS_TIME_AP), (size*1.2, size))
-    # rad_chart1.plot(num_stars=2500, star_labels=30, sort_filters=['mag'], reverse_flag=False)
+    # rad_chart1 = AzimuthalEQHemisphere((OBS_LOC, cur_time if current_time else OBS_TIME_AP), (size*1.2, size))
+    # rad_chart1.plot(num_stars=1000, star_labels=20, sort_filters=['mag'], reverse_flag=False)
     # rad_chart1.export("RadChart1.svg")
 
-    squareChart1 = OrthographicArea((OBS_LOC, cur_time if current_time else OBS_TIME_AP), (size * 1.2, size), ORION_AREA)
+    squareChart1 = OrthographicArea((OBS_LOC, cur_time if current_time else OBS_TIME_AP), (size * 1.2, size), BIG_DIPPER_AREA)
     squareChart1.plot(num_stars=2000, star_labels=30, sort_filters=['mag'], reverse_flag=False)
     squareChart1.export("SquareChart1.svg")
     time2 = time.time()
