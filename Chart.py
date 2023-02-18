@@ -33,9 +33,8 @@ class Chart:
         self.AA = AltAz(location=self.OBS_LOC, obstime=self.OBS_TIME)  # AltAz frame from OBS_LOC and OBS_TIME
 
         self.star_df = pd.read_csv('Star CSV/hygdata_v3.csv', keep_default_na=False,
-                                   nrows=5000)  # Note: change this magic number to some variable
+                                   nrows=10000)  # Note: change this magic number to some variable
 
-        self.stars_above_horizon = []  # Note: This should exist only in RadialChart
         self.star_list = []
 
         # NOTE: Read more about pool.map_async()
@@ -66,10 +65,6 @@ class Chart:
         # Processes star information from main star dataframe (star_df) and returns Star object
         new_star = Star(self.star_df['ra'][i], self.star_df['dec'][i], self.star_df['mag'][i], self.star_df['id'][i],
                         self.star_df['dist'][i], self.star_df['proper'][i], con=self.star_df['con'][i])
-        star_altaz_frame = new_star.coord.transform_to(self.AA)
-        new_star.az = float(star_altaz_frame.az.to_string(unit=u.rad, decimal=True))
-        new_star.alt = float(star_altaz_frame.alt.to_string(unit=u.deg, decimal=True))
-
         return new_star
 
     # Note: This method is probably static, deal with that, or think about why it isn't
@@ -110,6 +105,7 @@ class Chart:
 class AzimuthalEQHemisphere(Chart):
     # Uses Azimuthal equidistant projection
     def __init__(self, OBS_INFO, CANVAS_INFO):
+        self.stars_above_horizon = []
         super().__init__(OBS_INFO, CANVAS_INFO)
         self.MAIN_CIRCLE_R = (self.CANVAS_Y * .9) / 2  # Note: Change multiplier to parameter
         self.SCALING_CONSTANT = self.MAIN_CIRCLE_R / 675.0  # Based on visual preference from other charts
@@ -124,8 +120,8 @@ class AzimuthalEQHemisphere(Chart):
         return f'RadialChart | Stars loaded: {len(self.star_list)} | SSOs loaded :{len(self.sso_list)}'
 
     def add_base_elements(self):
-        self.chartSVG.circle(self.MAIN_CIRCLE_CX, self.MAIN_CIRCLE_CY, self.MAIN_CIRCLE_R, "white", width=5*self.SCALING_CONSTANT, fill=False)
-        # consider changing circle center to "50%" if I want to scale with canvas size, for now, OK
+        self.chartSVG.circle(self.MAIN_CIRCLE_CX, self.MAIN_CIRCLE_CY, self.MAIN_CIRCLE_R, "white",
+                             width=5*self.SCALING_CONSTANT, fill=False)
         # draw RA line markings at every hour
         ra_line_angles = np.linspace(0, 2 * math.pi, 25)  # 25 segments, so we can ignore the redundant 0 and 2pi
         for angle in ra_line_angles[:-1]:
@@ -151,14 +147,20 @@ class AzimuthalEQHemisphere(Chart):
         self.chartSVG.text(self.MAIN_CIRCLE_CX - self.MAIN_CIRCLE_R, self.MAIN_CIRCLE_CY, "E", size=text_size,
                            color="white", dx=-45*self.SCALING_CONSTANT, dy=-15*self.SCALING_CONSTANT)
 
-        # draw magnitude legend
-        # self.chartSVG.rect(50, self.CANVAS_Y - 50, 250, 325, fill="none", stroke_width=3, rx=2)
+    def process_star(self, i) -> Star:
+        # Processes star information from main star dataframe (star_df) and returns Star object
+        new_star = super().process_star(i)
+        star_altaz_frame = new_star.coord.transform_to(self.AA)
+        new_star.az = float(star_altaz_frame.az.to_string(unit=u.rad, decimal=True))
+        new_star.alt = float(star_altaz_frame.alt.to_string(unit=u.deg, decimal=True))
+
+        return new_star
+
     def add_star(self, star):
         # Accepts Star object and adds to main star_list
         if star.alt > 0:
             self.stars_above_horizon.append(star)
-
-        self.star_list.append(star)
+        super().add_star(star)
 
     def plot_preprocess_obj(self, cel_obj):
         cel_obj.normalized_alt = -1 * (cel_obj.alt / 90 - 1)
@@ -180,7 +182,7 @@ class AzimuthalEQHemisphere(Chart):
         #  coords would be the same
         #  Although, I would have to call this function every time if I changed the main circle size
         min_mag, max_mag = mag_info
-        # make line below its own function?
+        # Note: Make this line below its own function and redo the normalization, maybe log scale?
         star.size = self.max_star_size * (
                 1 - (star.mag - min_mag) / (max_mag - min_mag)) + self.min_star_size
         star.size *= self.SCALING_CONSTANT
@@ -239,9 +241,9 @@ class AzimuthalEQHemisphere(Chart):
 
 # TODO: Add SSO support for OrthographicArea
 # Note: The constellations are graphing backwards right now... Can be fixed by returning -x in ra_dec_to_xy
+# TODO: BBOX should be centered, not initial plotting point
 class Stereographic(Chart):
     def __init__(self, OBS_INFO, CANVAS_INFO, area, Orthographic=False):
-        super().__init__(OBS_INFO, CANVAS_INFO)
         self.ORTHOGRAPHIC = Orthographic
         self.area_center = area.center  # rads
         self.ra_center, self.dec_center = self.area_center  # rads
@@ -249,6 +251,7 @@ class Stereographic(Chart):
         self.DEC_SCOPE = area.DEC_SCOPE  # tuple, rads
         self.RA_RANGE = area.RA_RANGE  # float, rads
         self.DEC_RANGE = area.DEC_RANGE  # float, rads
+        super().__init__(OBS_INFO, CANVAS_INFO)
 
         self.MAX_X_SIZE = self.CANVAS_X * .8
         self.MAX_Y_SIZE = self.CANVAS_Y * .8
@@ -264,50 +267,78 @@ class Stereographic(Chart):
 
         self.min_star_size = .75
         self.max_star_size = 10
-        # divide the values by 2 since the plot is generated at 0,0 in center of canvas
+
+    # def find_stars_in_range(self):
+    #     for star in self.star_list:
+    #         if self.RA_SCOPE[0] < math.radians(star.ra) < self.RA_SCOPE[1] and self.DEC_SCOPE[0] < math.radians(star.dec) < self.DEC_SCOPE[1]:
+    #             self.stars_in_range.append(star)
 
     def find_stars_in_range(self):
         for star in self.star_list:
-            if self.RA_SCOPE[0] < math.radians(star.ra) < self.RA_SCOPE[1] and self.DEC_SCOPE[0] < math.radians(star.dec) < self.DEC_SCOPE[1]:
+            if self.check_in_BBOX((star.x, star.y)):
                 self.stars_in_range.append(star)
 
     # TODO: Instead of plotting a grid of RA/Dec lines, plot 4 of the nearest whole or near-whole multiples of RA/Dec
     def add_base_elements(self, bbox=True):
         ra_space = np.linspace(self.RA_SCOPE[0], self.RA_SCOPE[1], 100)
         dec_space = np.linspace(self.DEC_SCOPE[0], self.DEC_SCOPE[1], 100)
-
-        ra_sample = np.linspace(self.RA_SCOPE[0], self.RA_SCOPE[1], 6)
-        dec_sample = np.linspace(self.DEC_SCOPE[0], self.DEC_SCOPE[1], 6)
-        # This code needs to be written, it kinda sucks, but it's partially because of SVG.curve()
-
-        for i, dec_samp in enumerate(dec_sample):
+        # TODO: Revist all lines below that handle standard dec and ra lines, units need to be handled better
+        all_ra_lines = np.arange(0, 24, 1)
+        sample_ra_values = np.linspace(0, 24, 5000)
+        all_dec_lines = np.arange(-90, 90, 10)
+        sample_dec_values = np.linspace(-90, 90, 5000)
+        # TODO: When a dec line is split by the BBOX, plot as two curves instead of trying to plot as one
+        for dec_val in all_dec_lines[1:]:
+            dec_val = math.radians(dec_val)
             curve = []
-            if i == 0 or i == len(ra_sample) - 1:
-                width = 5
-                stroke_opacity = 1
-            else:
-                width = 2
-                stroke_opacity = .25
+            for ra in sample_ra_values:
+                ra = math.radians(ra*15)
+                point = self.ra_dec_to_xy(ra, dec_val)
+                if self.check_in_BBOX(point):
+                    point = (point[0] * self.SCALE + self.CANVAS_CENTER[0],
+                             -point[1] * self.SCALE + self.CANVAS_CENTER[1])
+                    curve.append(point)
+            if len(curve) < 2:
+                continue
+            self.chartSVG.curve(curve, width=2, stroke_opacity=.5)
+        for ra_val in all_ra_lines:
+            ra_val = math.radians(ra_val*15)
+            curve = []
+            for dec in sample_dec_values:
+                dec = math.radians(dec)
+                point = self.ra_dec_to_xy(ra_val, dec)
+                if self.check_in_BBOX(point):
+                    point = (point[0] * self.SCALE + self.CANVAS_CENTER[0],
+                             -point[1] * self.SCALE + self.CANVAS_CENTER[1])
+                    curve.append(point)
+            if len(curve) < 2:
+                continue
+
+            self.chartSVG.curve(curve, width=2, stroke_opacity=.5)
+
+        # drawing area asked for
+        for dec_samp in self.DEC_SCOPE:
+            curve = []
             for ra in ra_space:
                 point = self.ra_dec_to_xy(ra, dec_samp)
                 point = (point[0] * self.SCALE + self.CANVAS_CENTER[0], -point[1] * self.SCALE + self.CANVAS_CENTER[1])
                 curve.append(point)
-            self.chartSVG.curve(curve, width=width, stroke_opacity=stroke_opacity)
-        for i, ra_samp in enumerate(ra_sample):
+            self.chartSVG.curve(curve, width=2, stroke_opacity=.25, color='blue')
+        for ra_samp in self.RA_SCOPE:
             curve = []
-            if i == 0 or i == len(ra_sample) - 1:
-                width = 5
-                stroke_opacity = 1
-            else:
-                width = 2
-                stroke_opacity = .25
             for dec in dec_space:
                 point = self.ra_dec_to_xy(ra_samp, dec)
                 point = (point[0] * self.SCALE + self.CANVAS_CENTER[0], -point[1] * self.SCALE + self.CANVAS_CENTER[1])
                 curve.append(point)
-            self.chartSVG.curve(curve, width=width, stroke_opacity=stroke_opacity)
+            self.chartSVG.curve(curve, width=2, stroke_opacity=.25, color='blue')
         if bbox:
-            self.chartSVG.rect(self.BBOX[0][0], self.BBOX[1][1], self.BBOX[1][0] - self.BBOX[0][0], self.BBOX[1][1] - self.BBOX[0][1], fill="None")
+            self.chartSVG.rect(self.BBOX[0][0], self.BBOX[1][1], self.BBOX[1][0] - self.BBOX[0][0],
+                               self.BBOX[1][1] - self.BBOX[0][1], fill="None")
+
+    def process_star(self, i) -> Star:
+        new_star = super().process_star(i)
+        self.plot_preprocess_obj(new_star)
+        return new_star
 
     def plot_preprocess_obj(self, cel_obj):
         cel_obj.x, cel_obj.y = self.ra_dec_to_xy(math.radians(cel_obj.ra), math.radians(cel_obj.dec))
@@ -336,7 +367,7 @@ class Stereographic(Chart):
         return -x * d, y * d
 
     def plot_star(self, star, mag_info):
-        self.plot_preprocess_obj(star)
+        # self.plot_preprocess_obj(star)
         min_mag, max_mag = mag_info
         # make line below its own function?
         star.size = self.max_star_size * (
@@ -392,10 +423,17 @@ class Stereographic(Chart):
 
         scales = ((self.MAX_X_SIZE / (max_x[0] - min_x[0])), (self.MAX_Y_SIZE / (max_y[1] - min_y[1])))
         self.SCALE = min(scales)
-
+        # Note: Maybe BBOX should be scaled when actually being plotted?
         self.BBOX = ((min_x[0] * self.SCALE + self.CANVAS_CENTER[0], min_y[1] * self.SCALE + self.CANVAS_CENTER[1]),
                      (max_x[0] * self.SCALE + self.CANVAS_CENTER[0], max_y[1] * self.SCALE + self.CANVAS_CENTER[1]))
         print(self.BBOX)
+
+    def check_in_BBOX(self, point):
+        if self.BBOX[0][0] < point[0] * self.SCALE + self.CANVAS_CENTER[0] < self.BBOX[1][0] \
+                and self.BBOX[0][1] < point[1] * self.SCALE + self.CANVAS_CENTER[1] < self.BBOX[1][1]:
+            return True
+        else:
+            return False
 
     def export(self, file_name):
         self.chartSVG.export(file_name)

@@ -39,7 +39,7 @@ OBS_TIME_AP = Time(f'{OBS_DATE}T{OBS_TIME}') - utcoffset
 # TODO: Generally revisit all places where a canvas size is determined and reevaluate
 # TODO: Add PyGui support, will take a rework of where loaded stars are and lots of stuff
 # TODO: Add Plate-Carree projection
-
+# TODO: Be able to plot max magnitude numbers, i.e. no dimmer than 5
 
 def main():
     current_time = True
@@ -49,11 +49,11 @@ def main():
     time1 = time.time()
 
     # rad_chart1 = AzimuthalEQHemisphere((OBS_LOC, cur_time if current_time else OBS_TIME_AP), (size*1.2, size))
-    # rad_chart1.plot(num_stars=1000, star_labels=20, sort_filters=['mag'], reverse_flag=False)
+    # rad_chart1.plot(num_stars=5000, star_labels=20, sort_filters=['mag'], reverse_flag=False)
     # rad_chart1.export("RadChart1.svg")
-
+    test_area = Area((8*15, 24*15), (60, 90))
     squareChart1 = Stereographic((OBS_LOC, cur_time if current_time else OBS_TIME_AP),
-                                 (size * 1.2, size), BIG_DIPPER_AREA, Orthographic=False)
+                                 (size * 1.2, size), test_area, Orthographic=False)
     squareChart1.plot(num_stars=2000, star_labels=30, sort_filters=['mag'], reverse_flag=False)
     squareChart1.export("SquareChart1.svg")
     time2 = time.time()

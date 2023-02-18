@@ -47,7 +47,32 @@ import math
 #     y = convert_dec_to_y(dec_value)
 #     prototypeSquare.line(plot_origin[0], y, plot_origin[0] + ra_size, y)
 # prototypeSquare.export("PrototypeSquareChart.svg")
-
+# for i, dec_samp in enumerate(dec_sample):
+#     curve = []
+#     if i == 0 or i == len(ra_sample) - 1:
+#         width = 3
+#         stroke_opacity = .8
+#     else:
+#         width = 2
+#         stroke_opacity = .25
+#     for ra in ra_space:
+#         point = self.ra_dec_to_xy(ra, dec_samp)
+#         point = (point[0] * self.SCALE + self.CANVAS_CENTER[0], -point[1] * self.SCALE + self.CANVAS_CENTER[1])
+#         curve.append(point)
+#     self.chartSVG.curve(curve, width=width, stroke_opacity=stroke_opacity)
+# for i, ra_samp in enumerate(ra_sample):
+#     curve = []
+#     if i == 0 or i == len(ra_sample) - 1:
+#         width = 3
+#         stroke_opacity = .8
+#     else:
+#         width = 2
+#         stroke_opacity = .25
+#     for dec in dec_space:
+#         point = self.ra_dec_to_xy(ra_samp, dec)
+#         point = (point[0] * self.SCALE + self.CANVAS_CENTER[0], -point[1] * self.SCALE + self.CANVAS_CENTER[1])
+#         curve.append(point)
+#     self.chartSVG.curve(curve, width=width, stroke_opacity=stroke_opacity)
 # Note: The goal here is to ensure there's some minimum number of lines on the plot, if the scale is too small
 #  then break the divisions down into half hours, and if needed go to quarter hours, but no further than that
 #  For dec, do it whole degrees, half degrees, quarter degrees

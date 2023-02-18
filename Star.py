@@ -16,7 +16,6 @@ class Star:
         self.coord = SkyCoord(self.ra, self.dec, unit="deg")
 
         self.name = name
-        self.label_print = ""
         self.color = color
 
         self.x = None
