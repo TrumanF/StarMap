@@ -1,6 +1,7 @@
 import math
 import abc
 import operator
+from multiprocessing import Pool
 
 from SVG import SVG
 from Star import Star
@@ -8,20 +9,14 @@ from SolarSystemObject import SSO
 
 import pandas as pd
 import numpy as np
-from astropy.time import Time
 from astropy.coordinates import AltAz, EarthLocation, get_body
 from astropy import units as u
-
-
-from multiprocessing import Pool
 
 
 def polar_to_cartesian(r, theta):
     return r * math.cos(theta), r * math.sin(theta)
 
 
-# TODO: SquareChart doesn't actually need location, so take that out of the Chart class and move to RadialChart
-# TODO: Rename RadialChart to HemisphereChart or AzimuthalEQ or something
 # Note: Add_star and add_sso are very similar, could be one function?
 class Chart:
     # Note: Read this shit
@@ -30,7 +25,7 @@ class Chart:
 
         self.CANVAS_X, self.CANVAS_Y = CANVAS_INFO
         self.CANVAS_CENTER = (self.CANVAS_X/2, self.CANVAS_Y/2)
-        self.chartSVG = SVG(self.CANVAS_X, self.CANVAS_Y)  # NOTE: Consider making this abstract
+        self.chartSVG = SVG(self.CANVAS_X, self.CANVAS_Y, background_color='black')  # NOTE: Consider making this abstract
         self.CHART_ELEMENT_OPACITY = .25
         self.CHART_ELEMENT_WIDTH = 2.5
 
@@ -244,9 +239,10 @@ class AzimuthalEQHemisphere(Chart):
 
 # TODO: Add SSO support for OrthographicArea
 # Note: The constellations are graphing backwards right now... Can be fixed by returning -x in ra_dec_to_xy
-class OrthographicArea(Chart):
-    def __init__(self, OBS_INFO, CANVAS_INFO, area):
+class Stereographic(Chart):
+    def __init__(self, OBS_INFO, CANVAS_INFO, area, Orthographic=False):
         super().__init__(OBS_INFO, CANVAS_INFO)
+        self.ORTHOGRAPHIC = Orthographic
         self.area_center = area.center  # rads
         self.ra_center, self.dec_center = self.area_center  # rads
         self.RA_SCOPE = area.RA_SCOPE  # tuple, rads
@@ -254,8 +250,8 @@ class OrthographicArea(Chart):
         self.RA_RANGE = area.RA_RANGE  # float, rads
         self.DEC_RANGE = area.DEC_RANGE  # float, rads
 
-        self.MAX_X_SIZE = (self.CANVAS_X / 2) * .8
-        self.MAX_Y_SIZE = (self.CANVAS_Y / 2) * .8
+        self.MAX_X_SIZE = self.CANVAS_X * .8
+        self.MAX_Y_SIZE = self.CANVAS_Y * .8
         self.BBOX = None
         self.SCALE = None
         self.set_scale()
@@ -327,8 +323,17 @@ class OrthographicArea(Chart):
         delta_ra = ra - self.ra_center
         x = math.cos(dec) * math.sin(delta_ra)
         y = math.sin(dec) * math.cos(self.dec_center) - math.cos(dec) * math.cos(delta_ra) * math.sin(self.dec_center)
-        # Note: Should I scale values here or later?
-        return -x, y
+
+        z1 = math.sin(dec) * math.sin(self.dec_center) + math.cos(dec) * math.cos(self.dec_center) * math.cos(delta_ra)
+        if not self.ORTHOGRAPHIC:
+            if z1 < -.9:
+                d = 20 * math.sqrt((1 - .81) / (1.00000001 - z1 * z1))
+            else:
+                d = 2 / (z1 + 1)
+        else:
+            d = 1
+        # Note: -x because of convention of RA/Dec system and sky charts
+        return -x * d, y * d
 
     def plot_star(self, star, mag_info):
         self.plot_preprocess_obj(star)
@@ -356,19 +361,13 @@ class OrthographicArea(Chart):
             self.plot_star(star, (min_mag, max_mag))
 
         # Note: Come back to labels
-        # if labels:
-        #     for star in sorted_stars_to_plot[:num_stars][:labels]:
-        #         self.chartSVG.text(star.x, star.y, star.name.capitalize() if star.name else star.id, color=star.color, dx=5 + star.size,
-        #                            size=15*self.SCALING_CONSTANT)
+        if labels:
+            for star in sorted_stars_to_plot[:num_stars][:labels]:
+                self.chartSVG.text(star.x*self.SCALE + self.CANVAS_CENTER[0], star.y*self.SCALE + self.CANVAS_CENTER[1],
+                                   star.name.capitalize() if star.name else star.id, color=star.color,
+                                   dx=5 + star.size, size=15)
 
     def set_scale(self):
-        # Note: the 4 lines below are FLAWED
-        lower_coord = self.ra_dec_to_xy(self.RA_SCOPE[0], self.DEC_SCOPE[0])
-        upper_coord = self.ra_dec_to_xy(self.RA_SCOPE[1], self.DEC_SCOPE[1])
-
-        scales = ((self.MAX_X_SIZE / abs(lower_coord[0])), (self.MAX_Y_SIZE / abs(lower_coord[1])))
-        self.SCALE = min(scales)
-
         ra_space = np.linspace(self.RA_SCOPE[0], self.RA_SCOPE[1], 100)
         dec_space = np.linspace(self.DEC_SCOPE[0], self.DEC_SCOPE[1], 100)
 
@@ -376,26 +375,27 @@ class OrthographicArea(Chart):
         for dec_samp in [self.DEC_SCOPE[0], self.DEC_SCOPE[1]]:
             for ra in ra_space:
                 point = self.ra_dec_to_xy(ra, dec_samp)
-                point = (point[0] * self.SCALE + self.CANVAS_CENTER[0], point[1] * self.SCALE + self.CANVAS_CENTER[1])
+                point = (point[0], point[1])
                 all_points.append(point)
         for ra_samp in [self.RA_SCOPE[0], self.RA_SCOPE[1]]:
             for dec in dec_space:
                 point = self.ra_dec_to_xy(ra_samp, dec)
-                point = (point[0] * self.SCALE + self.CANVAS_CENTER[0], point[1] * self.SCALE + self.CANVAS_CENTER[1])
+                point = (point[0], point[1])
                 all_points.append(point)
 
-        arr = np.array(all_points)
-        max_idx = np.argmax(arr, axis=0)
-        min_idx = np.argmin(arr, axis=0)
+        np_all_points = np.array(all_points)
+        max_idx = np.argmax(np_all_points, axis=0)
+        min_idx = np.argmin(np_all_points, axis=0)
 
-        max_x, max_y = arr[max_idx]
-        min_x, min_y = arr[min_idx]
-        print(max_x, max_y)
-        print(min_x, min_y)
-        self.BBOX = ((min_x[0], min_y[1]), (max_x[0], max_y[1]))
-        # self.chartSVG.line(min_x[0], 900, max_x[0], 1000)
-        # self.chartSVG.line(900, min_y[1], 1000, max_y[1])
-        # self.chartSVG.rect(min_x[0], max_y[1], max_x[0] - min_x[0], max_y[1] - min_y[1], fill="None")
+        max_x, max_y = np_all_points[max_idx]
+        min_x, min_y = np_all_points[min_idx]
+
+        scales = ((self.MAX_X_SIZE / (max_x[0] - min_x[0])), (self.MAX_Y_SIZE / (max_y[1] - min_y[1])))
+        self.SCALE = min(scales)
+
+        self.BBOX = ((min_x[0] * self.SCALE + self.CANVAS_CENTER[0], min_y[1] * self.SCALE + self.CANVAS_CENTER[1]),
+                     (max_x[0] * self.SCALE + self.CANVAS_CENTER[0], max_y[1] * self.SCALE + self.CANVAS_CENTER[1]))
+        print(self.BBOX)
 
     def export(self, file_name):
         self.chartSVG.export(file_name)

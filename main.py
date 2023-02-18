@@ -1,4 +1,4 @@
-from Chart import AzimuthalEQHemisphere, OrthographicArea
+from Chart import AzimuthalEQHemisphere, Stereographic
 from astropy.coordinates import EarthLocation
 from astropy.time import Time
 from astropy import units as u
@@ -6,6 +6,7 @@ from Area import Area
 from Area import ORION_AREA, URSA_MINOR_AREA, BIG_DIPPER_AREA
 import datetime
 import time
+
 # TODO: Make this information read from a .txt file or something, that way I can generate like 4 plots at a time
 # input all location and time data
 OBS_LAT = 37.716452
@@ -17,7 +18,7 @@ utcoffset = -8*u.hour
 OBS_TIME_AP = Time(f'{OBS_DATE}T{OBS_TIME}') - utcoffset
 
 
-# TODO: Make some class that will generate the base template for me, that way it can have different skins easily
+# TODO: Make some class that will generate the base template for me, that way it can have different skins easily (?)
 # TODO: Revisit normalization function for magnitude -> drawing size - I think maybe a gentle log scale would be best
 # TODO: Add various legends to show magnitude scale, compass directions, labels for planets and sun/moon
 # TODO: Constellation lines
@@ -25,12 +26,10 @@ OBS_TIME_AP = Time(f'{OBS_DATE}T{OBS_TIME}') - utcoffset
 # TODO: Ecliptic path
 # TODO: Get color data for stars and lightly color each star as they're plotted
 # TODO: Load an observing plan and draw connections between those stars with redline
-# TODO: Be able to generate sections of sky
 # TODO: Revise SVG gradient, it doesn't look that good
 # TODO: Check if text overlaps with other text and fix that, also check if items go outside main chart
-# TODO: Need some sort of universal scaling factor, so I can make the plot smaller larger and everything else follows
 # TODO: PNG and GIF support
-# TODO: Start thinking about optimization, it's getting a little bit slow, especially with high star count
+# TODO: Revisit optimization, look at how often we do coordinate transformations
 # TODO: Generate metadata in SVG that displays basic info about the plot, loc, time/date,
 #  sorting filter used, number of stars, etc.
 # TODO: Think about how I want to interact with Chart class, should I give star data immediately?
@@ -38,6 +37,10 @@ OBS_TIME_AP = Time(f'{OBS_DATE}T{OBS_TIME}') - utcoffset
 # TODO: Add DSOs and plot their apparent sizes with ovals
 # TODO: Add some sort of gradient on the star based on their variability?
 # TODO: Generally revisit all places where a canvas size is determined and reevaluate
+# TODO: Add PyGui support, will take a rework of where loaded stars are and lots of stuff
+# TODO: Add Plate-Carree projection
+
+
 def main():
     current_time = True
     cur_time = Time("T".join(str(datetime.datetime.now()).split(" "))) - utcoffset
@@ -49,7 +52,8 @@ def main():
     # rad_chart1.plot(num_stars=1000, star_labels=20, sort_filters=['mag'], reverse_flag=False)
     # rad_chart1.export("RadChart1.svg")
 
-    squareChart1 = OrthographicArea((OBS_LOC, cur_time if current_time else OBS_TIME_AP), (size * 1.2, size), BIG_DIPPER_AREA)
+    squareChart1 = Stereographic((OBS_LOC, cur_time if current_time else OBS_TIME_AP),
+                                 (size * 1.2, size), BIG_DIPPER_AREA, Orthographic=False)
     squareChart1.plot(num_stars=2000, star_labels=30, sort_filters=['mag'], reverse_flag=False)
     squareChart1.export("SquareChart1.svg")
     time2 = time.time()
