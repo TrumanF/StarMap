@@ -291,16 +291,27 @@ class Stereographic(Chart):
         for dec_val in all_dec_lines[1:]:
             dec_val = math.radians(dec_val)
             curve = []
+            last_point_added = True
             for ra in sample_ra_values:
                 ra = math.radians(ra*15)
                 point = self.ra_dec_to_xy(ra, dec_val)
                 if self.check_in_BBOX(point):
-                    point = (point[0] * self.SCALE + self.CANVAS_CENTER[0],
-                             -point[1] * self.SCALE + self.CANVAS_CENTER[1])
-                    curve.append(point)
+                    if last_point_added:
+                        point = (point[0] * self.SCALE + self.CANVAS_CENTER[0],
+                                 -point[1] * self.SCALE + self.CANVAS_CENTER[1])
+                        curve.append(point)
+                        last_point_added = True
+                    else:
+                        if len(curve) >= 2:
+                            self.chartSVG.curve(curve, width=2, stroke_opacity=.5)
+                            curve = []
+                        last_point_added = True
+                else:
+                    last_point_added = False
             if len(curve) < 2:
                 continue
             self.chartSVG.curve(curve, width=2, stroke_opacity=.5)
+
         for ra_val in all_ra_lines:
             ra_val = math.radians(ra_val*15)
             curve = []
@@ -313,7 +324,6 @@ class Stereographic(Chart):
                     curve.append(point)
             if len(curve) < 2:
                 continue
-
             self.chartSVG.curve(curve, width=2, stroke_opacity=.5)
 
         # drawing area asked for
