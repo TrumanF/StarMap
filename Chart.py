@@ -4,17 +4,17 @@ import operator
 from multiprocessing import Pool
 
 from SVG import SVG
-from Star import Star
-from SolarSystemObject import SSO
+from Body import Star, SSO
 
 import pandas as pd
 import numpy as np
-from astropy.coordinates import AltAz, EarthLocation, get_body
+from astropy.coordinates import AltAz, get_body
 from astropy import units as u
 
 
 def polar_to_cartesian(r, theta):
     return r * math.cos(theta), r * math.sin(theta)
+
 
 # TODO: Have constellations plot before stars, will need some reworking
 # Note: Add_star and add_sso are very similar, could be one function?
@@ -25,7 +25,8 @@ class Chart:
 
         self.CANVAS_X, self.CANVAS_Y = CANVAS_INFO
         self.CANVAS_CENTER = (self.CANVAS_X/2, self.CANVAS_Y/2)
-        self.chartSVG = SVG(self.CANVAS_X, self.CANVAS_Y, background_color='black')  # NOTE: Consider making this abstract
+        self.chartSVG = SVG(self.CANVAS_X, self.CANVAS_Y,
+                            background_color='black')  # NOTE: Consider making this abstract
         self.CHART_ELEMENT_OPACITY = .25
         self.CHART_ELEMENT_WIDTH = 2.5
 
@@ -33,7 +34,7 @@ class Chart:
         self.AA = AltAz(location=self.OBS_LOC, obstime=self.OBS_TIME)  # AltAz frame from OBS_LOC and OBS_TIME
 
         self.star_df = pd.read_csv('Star CSV/hygdata_v3.csv', keep_default_na=False,
-                                   nrows=25000)  # Note: change this magic number to some variable
+                                   nrows=15000)  # Note: change this magic number to some variable
         self.star_list = []
         self.cons_dict = {'Cap': [], 'Pav': [], 'CMa': [], 'Peg': [], 'Ant': [], 'Sct': [], 'Cen': [], 'Tel': [],
                           'Ori': [], 'Cae': [], 'Hyi': [], 'Mon': [], 'Ari': [], 'Cet': [], 'Lib': [], 'Dra': [],
@@ -58,6 +59,8 @@ class Chart:
         self.min_star_size = 1
         self.max_star_size = 8
 
+        self.sorted_stars_to_plot = []
+
         self.sso_list = []  # Note: probably needs a rename, something like 'active_sso_list' ?
         self.possible_sso = ['sun', 'moon', 'mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune']
         self.ssos_above_horizon = []  # Note: This should exist only in RadialChart
@@ -79,8 +82,8 @@ class Chart:
                         con=self.star_df['con'][i])
         return new_star
 
-    # Note: This method is probably static, deal with that, or think about why it isn't
-    def sort_stars(self, list_to_sort, keys, reverse_flag=False):
+    @staticmethod
+    def sort_stars(list_to_sort, keys, reverse_flag=False):
         # Note: Should this be stars_above_horizon? Or all stars?
         # Note: Sorted() sucks, can't tell it which key needs to be reversed, just deal with it for now
         temp = sorted(list_to_sort, key=operator.attrgetter(*keys), reverse=reverse_flag)
@@ -110,7 +113,38 @@ class Chart:
         pass
 
     @abc.abstractmethod
-    def plot(self, num_stars=500, SSOs=True):
+    def plot_star(self, star, mag_info):
+        pass
+
+    @abc.abstractmethod
+    def plot_stars(self, num_stars, sort_filters=None, reverse_flag=False, labels=None):
+        if type(sort_filters) is not list:
+            sort_filters = [sort_filters.lower()]
+        # Note: This affects the plotting size, moved [:num_stars] to for loop when plotting if want universal scale
+
+        match self:
+            case AzimuthalEQHemisphere():
+                self.sorted_stars_to_plot = self.sort_stars(self.stars_above_horizon, sort_filters, reverse_flag)[:num_stars]
+            case Stereographic():
+                self.sorted_stars_to_plot = self.sort_stars(self.stars_in_range, sort_filters, reverse_flag)[:num_stars]
+        # Note: This can be made faster in some scenarios where sorted_stars already is sorted by mag
+        sorted_stars_mag_sorted = [st.mag for st in sorted(self.sorted_stars_to_plot, key=lambda s: s.mag)]
+        min_mag = min(sorted_stars_mag_sorted)
+        max_mag = max(sorted_stars_mag_sorted)
+        # Check if requested number of stars is greater than amount available to be on plot
+        if num_stars > len(self.sorted_stars_to_plot):
+            num_stars = len(self.sorted_stars_to_plot) - 1
+            print(f"Number of stars requested is greater than available to plot, setting number to {num_stars}")
+        for star in self.sorted_stars_to_plot:
+            self.plot_star(star, (min_mag, max_mag))
+
+    def plot(self, num_stars=500, sort_filters='mag', reverse_flag=False, star_labels=None):
+        self.plot_constellations(['Ori'])
+        if num_stars:
+            self.plot_stars(num_stars, sort_filters, reverse_flag, star_labels)
+
+    @abc.abstractmethod
+    def plot_constellations(self, constellations):
         pass
 
 
@@ -122,9 +156,12 @@ class AzimuthalEQHemisphere(Chart):
         self.MAIN_CIRCLE_R = (self.CANVAS_Y * .9) / 2  # Note: Change multiplier to parameter
         self.SCALING_CONSTANT = self.MAIN_CIRCLE_R / 675.0  # Based on visual preference from other charts
         self.CHART_ELEMENT_WIDTH = max(1, self.SCALING_CONSTANT * self.CHART_ELEMENT_WIDTH)
+        # Note: Maybe rename to CHART_CX, CY to be consistent with terminology in other charts
         self.MAIN_CIRCLE_CX = self.CANVAS_X / 2
         self.MAIN_CIRCLE_CY = self.CANVAS_Y / 2
 
+        for star in self.stars_above_horizon:
+            self.plot_preprocess_obj(star)
         # call function to create base chart
         self.add_base_elements()
 
@@ -181,14 +218,13 @@ class AzimuthalEQHemisphere(Chart):
         cel_obj.x, cel_obj.y = -x + self.MAIN_CIRCLE_CX, y + self.MAIN_CIRCLE_CY
 
     def plot(self, num_stars=500, SSOs=True, sort_filters='mag', reverse_flag=False, star_labels=None):
-        if num_stars:
-            self.plot_stars(num_stars, sort_filters, reverse_flag, star_labels)
+        super().plot(num_stars=num_stars, sort_filters=sort_filters, reverse_flag=reverse_flag,
+                     star_labels=star_labels)
         if SSOs:
             self.plot_ssos(SSOs)
-        self.plot_constellations(['Ori'])
 
     def plot_star(self, star, mag_info):
-        self.plot_preprocess_obj(star)
+
         # Note: This works great, but if I wanted to plot again with different
         #  visual parameters, I'd have to re-preprocess, which doesn't need to happen since the xy
         #  coords would be the same
@@ -208,24 +244,11 @@ class AzimuthalEQHemisphere(Chart):
     # TODO: Add functionality where filtered stars can be placed on all stars, but in different color
     # TODO: Ensure all sort filters come in lower_case()
     def plot_stars(self, num_stars, sort_filters=None, reverse_flag=False, labels=None):
-        if type(sort_filters) is not list:
-            sort_filters = [sort_filters.lower()]
-        # Note: This affects the plotting size, moved [:num_stars] to for loop when plotting if want universal scale
-        sorted_stars_to_plot = self.sort_stars(self.stars_above_horizon, sort_filters, reverse_flag)[:num_stars]
-        # Note: This can be made faster in some scenarios where sorted_stars already is sorted by mag
-        sorted_stars_mag_sorted = [st.mag for st in sorted(sorted_stars_to_plot, key=lambda s: s.mag)]
-        min_mag = min(sorted_stars_mag_sorted)
-        max_mag = max(sorted_stars_mag_sorted)
-        # Check if requested number of stars is greater than amount available to be on plot
-        if num_stars > len(sorted_stars_to_plot):
-            num_stars = len(sorted_stars_to_plot) - 1
-            print(f"Number of stars requested is greater than available to plot, setting number to {num_stars}")
-        for star in sorted_stars_to_plot:
-            self.plot_star(star, (min_mag, max_mag))
+        super().plot_stars(num_stars, sort_filters=sort_filters, reverse_flag=reverse_flag, labels=labels)
         if labels:
-            for star in sorted_stars_to_plot[:num_stars][:labels]:
-                self.chartSVG.text(star.x, star.y, star.name.capitalize() if star.name else star.hd, color=star.color, dx=5 + star.size,
-                                   size=15*self.SCALING_CONSTANT)
+            for star in self.sorted_stars_to_plot[:num_stars][:labels]:
+                self.chartSVG.text(star.x, star.y, star.name.capitalize() if star.name else star.hd, color=star.color,
+                                   dx=5 + star.size, size=15*self.SCALING_CONSTANT)
 
     def plot_sso(self, sso):
         self.plot_preprocess_obj(sso)
@@ -256,10 +279,10 @@ class AzimuthalEQHemisphere(Chart):
                 line_pairs.append(line.strip().split(","))
             # Note: Can be slightly more efficient by storing intermediate results
             for pair in line_pairs:
-                print(pair)
                 star1 = next(star for star in self.cons_dict[constellation] if star.bayer == pair[0])
                 star2 = next(star for star in self.cons_dict[constellation] if star.bayer == pair[1])
-                self.chartSVG.line(star1.x, star1.y, star2.x, star2.y, color='red', opacity=.75)
+                if star1.alt > 0 and star2.alt > 2:
+                    self.chartSVG.line(star1.x, star1.y, star2.x, star2.y, color='red', opacity=.75)
 
     def export(self, file_name):
         self.chartSVG.export(file_name)
@@ -268,7 +291,6 @@ class AzimuthalEQHemisphere(Chart):
 # TODO: Add SSO support for Stereographic (?)
 # Note: The constellation CSV are graphing backwards right now... Can be fixed by returning -x in ra_dec_to_xy
 # TODO: BBOX should be centered, not initial plotting point
-#  Need a scale and offset function that can handle the offsetting after a bounding box is created
 class Stereographic(Chart):
     def __init__(self, OBS_INFO, CANVAS_INFO, area, Orthographic=False):
         self.ORTHOGRAPHIC = Orthographic
@@ -286,10 +308,12 @@ class Stereographic(Chart):
 
         self.RA_RANGE = area.RA_RANGE  # float, rads
         self.DEC_RANGE = area.DEC_RANGE  # float, rads
+
         super().__init__(OBS_INFO, CANVAS_INFO)
 
         self.MAX_X_SIZE = self.CANVAS_X * .8
         self.MAX_Y_SIZE = self.CANVAS_Y * .8
+        self.unit_BBOX = None
         self.BBOX = None
         self.SCALE = None
         self.set_scale()
@@ -300,24 +324,22 @@ class Stereographic(Chart):
         self.stars_in_range = []
         self.find_stars_in_range()
 
+        for star in self.stars_in_range:
+            star.x, star.y = self.scale_offset((star.unit_x, star.unit_y))
+
         self.min_star_size = .75
         self.max_star_size = 10
 
-    # def find_stars_in_range(self):
-    #     for star in self.star_list:
-    #         if self.RA_SCOPE[0] < math.radians(star.ra) < self.RA_SCOPE[1] and self.DEC_SCOPE[0] < math.radians(star.dec) < self.DEC_SCOPE[1]:
-    #             self.stars_in_range.append(star)
-
     def find_stars_in_range(self):
         for star in self.star_list:
-            if self.check_in_BBOX((star.x, star.y)):
+            if self.check_in_BBOX((star.unit_x, star.unit_y)):
                 self.stars_in_range.append(star)
 
     # TODO: Add plotting of half and quarter RA/Dec lines
     def add_base_elements(self, bbox=True):
         ra_space = np.linspace(self.RA_SCOPE[0], self.RA_SCOPE[1], 100)
         dec_space = np.linspace(self.DEC_SCOPE[0], self.DEC_SCOPE[1], 100)
-        # TODO: Revist all lines below that handle standard dec and ra lines, units need to be handled better
+        # TODO: Revisit all lines below that handle standard dec and ra lines, units need to be handled better
         all_ra_lines = np.arange(0, 24, 1)
         sample_ra_values = np.linspace(0, 24, 5000)
         all_dec_lines = np.arange(-90, 90, 10)
@@ -397,31 +419,7 @@ class Stereographic(Chart):
         return new_star
 
     def plot_preprocess_obj(self, cel_obj):
-        cel_obj.x, cel_obj.y = self.ra_dec_to_xy(math.radians(cel_obj.ra), math.radians(cel_obj.dec))
-
-    def plot(self, num_stars=500, SSOs=True, sort_filters='mag', reverse_flag=False, star_labels=None):
-        self.plot_constellations(["Ori"])
-        if num_stars:
-            self.plot_stars(num_stars, sort_filters, reverse_flag, star_labels)
-        # if SSOs:
-        #     self.plot_ssos(SSOs)
-
-    def ra_dec_to_xy(self, ra, dec):
-        # ra and dec input in radians
-        delta_ra = ra - self.ra_center
-        x = math.cos(dec) * math.sin(delta_ra)
-        y = math.sin(dec) * math.cos(self.dec_center) - math.cos(dec) * math.cos(delta_ra) * math.sin(self.dec_center)
-
-        z1 = math.sin(dec) * math.sin(self.dec_center) + math.cos(dec) * math.cos(self.dec_center) * math.cos(delta_ra)
-        if not self.ORTHOGRAPHIC:
-            if z1 < -.9:
-                d = 20 * math.sqrt((1 - .81) / (1.00000001 - z1 * z1))
-            else:
-                d = 2 / (z1 + 1)
-        else:
-            d = 1
-        # Note: -x because of convention of RA/Dec system and sky charts
-        return -x * d, y * d
+        cel_obj.unit_x, cel_obj.unit_y = self.ra_dec_to_xy(math.radians(cel_obj.ra), math.radians(cel_obj.dec))
 
     def plot_star(self, star, mag_info):
         # self.plot_preprocess_obj(star)
@@ -429,29 +427,15 @@ class Stereographic(Chart):
         # make line below its own function?
         star.size = self.max_star_size * (
                 1 - (star.mag - min_mag) / (max_mag - min_mag)) + self.min_star_size
-        self.chartSVG.circle(star.x*self.SCALE + self.CANVAS_CENTER[0], star.y*self.SCALE + self.CANVAS_CENTER[1], star.size,
-                             star.color, fill="url(#StarGradient1)", width=0)
+        self.chartSVG.circle(star.x, star.y,
+                             star.size, star.color, fill="url(#StarGradient1)", width=0)
 
     def plot_stars(self, num_stars, sort_filters=None, reverse_flag=False, labels=None):
-        if type(sort_filters) is not list:
-            sort_filters = [sort_filters.lower()]
-        # Note: This affects the plotting size, moved [:num_stars] to for loop when plotting if want universal scale
-        sorted_stars_to_plot = self.sort_stars(self.stars_in_range, sort_filters, reverse_flag)[:num_stars]
-        # Note: This can be made faster in some scenarios where sorted_stars already is sorted by mag
-        sorted_stars_mag_sorted = [st.mag for st in sorted(sorted_stars_to_plot, key=lambda s: s.mag)]
-        min_mag = min(sorted_stars_mag_sorted)
-        max_mag = max(sorted_stars_mag_sorted)
-        # Check if requested number of stars is greater than amount available to be on plot
-        if num_stars > len(sorted_stars_to_plot):
-            num_stars = len(sorted_stars_to_plot) - 1
-            print(f"Number of stars requested is greater than available to plot, setting number to {num_stars}")
-        for star in sorted_stars_to_plot:
-            self.plot_star(star, (min_mag, max_mag))
-
+        super().plot_stars(num_stars, sort_filters=sort_filters, reverse_flag=reverse_flag, labels=labels)
         # Note: Come back to labels
         if labels:
-            for star in sorted_stars_to_plot[:num_stars][:labels]:
-                self.chartSVG.text(star.x*self.SCALE + self.CANVAS_CENTER[0], star.y*self.SCALE + self.CANVAS_CENTER[1],
+            for star in self.sorted_stars_to_plot[:num_stars][:labels]:
+                self.chartSVG.text(star.x, star.y,
                                    star.name.capitalize() if star.name else star.hd, color=star.color,
                                    dx=5 + star.size, size=15)
 
@@ -464,13 +448,10 @@ class Stereographic(Chart):
                 line_pairs.append(line.strip().split(","))
             # Note: Can be slightly more efficient by storing intermediate results
             for pair in line_pairs:
-                print(pair)
                 star1 = next(star for star in self.cons_dict[constellation] if star.bayer == pair[0])
                 star2 = next(star for star in self.cons_dict[constellation] if star.bayer == pair[1])
-                self.chartSVG.line(star1.x*self.SCALE + self.CANVAS_CENTER[0],
-                                   star1.y*self.SCALE + self.CANVAS_CENTER[1],
-                                   star2.x*self.SCALE + self.CANVAS_CENTER[0],
-                                   star2.y*self.SCALE + self.CANVAS_CENTER[1], color='blue', opacity=.75)
+                if self.check_in_BBOX((star1.unit_x, star1.unit_y)) and self.check_in_BBOX((star2.unit_x, star2.unit_y)):
+                    self.chartSVG.line(star1.x, star1.y, star2.x, star2.y, color='blue', opacity=.85)
 
     def set_scale(self):
         ra_space = np.linspace(self.RA_SCOPE[0], self.RA_SCOPE[1], 100)
@@ -498,12 +479,35 @@ class Stereographic(Chart):
         scales = ((self.MAX_X_SIZE / (max_x[0] - min_x[0])), (self.MAX_Y_SIZE / (max_y[1] - min_y[1])))
         self.SCALE = min(scales)
         # Note: Maybe BBOX should be scaled when actually being plotted?
-        self.BBOX = ((min_x[0] * self.SCALE + self.CANVAS_CENTER[0], min_y[1] * self.SCALE + self.CANVAS_CENTER[1]),
-                     (max_x[0] * self.SCALE + self.CANVAS_CENTER[0], max_y[1] * self.SCALE + self.CANVAS_CENTER[1]))
+        self.unit_BBOX = ((min_x[0], min_y[1]), (max_x[0], max_y[1]))
+        self.BBOX = (self.scale_offset((min_x[0], min_y[1])),
+                     self.scale_offset((max_x[0], max_y[1])))
+
+    def ra_dec_to_xy(self, ra, dec):
+        # ra and dec input in radians
+        delta_ra = ra - self.ra_center
+        x = math.cos(dec) * math.sin(delta_ra)
+        y = math.sin(dec) * math.cos(self.dec_center) - math.cos(dec) * math.cos(delta_ra) * math.sin(self.dec_center)
+
+        z1 = math.sin(dec) * math.sin(self.dec_center) + math.cos(dec) * math.cos(self.dec_center) * math.cos(delta_ra)
+        if not self.ORTHOGRAPHIC:
+            if z1 < -.9:
+                d = 20 * math.sqrt((1 - .81) / (1.00000001 - z1 * z1))
+            else:
+                d = 2 / (z1 + 1)
+        else:
+            d = 1
+        # Note: -x because of convention of RA/Dec system and sky charts
+        return -x * d, y * d
+
+    def scale_offset(self, point):
+        # input unit coordinates, tuple, (x, y)
+        return point[0] * self.SCALE + self.CANVAS_CENTER[0], point[1] * self.SCALE + self.CANVAS_CENTER[1]
 
     def check_in_BBOX(self, point):
-        if self.BBOX[0][0] < point[0] * self.SCALE + self.CANVAS_CENTER[0] < self.BBOX[1][0] \
-                and self.BBOX[0][1] < point[1] * self.SCALE + self.CANVAS_CENTER[1] < self.BBOX[1][1]:
+        # input unit coordinates, tuple, (x, y)
+        if self.unit_BBOX[0][0] < point[0] < self.unit_BBOX[1][0] \
+                and self.unit_BBOX[0][1] < point[1] < self.unit_BBOX[1][1]:
             return True
         else:
             return False

@@ -50,6 +50,9 @@ class SVG:
 
     # Note: function from https://github.com/codebox/star-charts/blob/master/svg.py
     def curve(self, _points, width=5.0, color="white", stroke_opacity=1):
+        # for point in _points:
+        #     _points[_points.index(point)] = (point[0], -point[1])
+
         points = sum(_points, ())
 
         # http://schepers.cc/getting-to-the-point

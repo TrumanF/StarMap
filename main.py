@@ -11,8 +11,8 @@ import time
 # input all location and time data
 OBS_LAT = 37.716452
 OBS_LONG = -122.496369
-OBS_TIME = "14:00:00"
-OBS_DATE = "2023-02-11"
+OBS_TIME = "13:45:00"
+OBS_DATE = "2023-02-19"
 OBS_LOC = EarthLocation(lat=OBS_LAT, lon=OBS_LONG, height=100*u.m)
 utcoffset = -8*u.hour
 OBS_TIME_AP = Time(f'{OBS_DATE}T{OBS_TIME}') - utcoffset
@@ -57,7 +57,7 @@ def main():
 
     test_area = Area((8*15, 24*15), (-90, 0))
     # squareChart1 = Stereographic((OBS_LOC, cur_time if current_time else OBS_TIME_AP),
-    #                              (size * 1.2, size), ORION_AREA, Orthographic=False)
+    #                              (size * 1.2, size), test_area, Orthographic=False)
     # squareChart1.plot(num_stars=2000, star_labels=30, sort_filters=['mag'], reverse_flag=False)
     # squareChart1.export("SquareChart1.svg")
 
