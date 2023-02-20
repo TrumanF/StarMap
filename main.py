@@ -41,6 +41,7 @@ OBS_TIME_AP = Time(f'{OBS_DATE}T{OBS_TIME}') - utcoffset
 # TODO: Add Plate-Carree projection
 # TODO: Be able to plot max magnitude numbers, i.e. no dimmer than 5
 # TODO: Create area, where certain star is centered and FOV can be specified
+# TODO: Make 3D view using distance (?)
 
 # TODO: Figure out exactly why hemisphere can't be plotted
 def main():
@@ -50,14 +51,16 @@ def main():
 
     time1 = time.time()
 
-    # rad_chart1 = AzimuthalEQHemisphere((OBS_LOC, cur_time if current_time else OBS_TIME_AP), (size*1.2, size))
-    # rad_chart1.plot(num_stars=5000, star_labels=20, sort_filters=['mag'], reverse_flag=False)
-    # rad_chart1.export("RadChart1.svg")
-    test_area = Area((0*15, 12*15), (-45, 90))
-    squareChart1 = Stereographic((OBS_LOC, cur_time if current_time else OBS_TIME_AP),
-                                 (size * 1.2, size), test_area, Orthographic=False)
-    squareChart1.plot(num_stars=2000, star_labels=30, sort_filters=['mag'], reverse_flag=False)
-    squareChart1.export("SquareChart1.svg")
+    rad_chart1 = AzimuthalEQHemisphere((OBS_LOC, cur_time if current_time else OBS_TIME_AP), (size*1.2, size))
+    rad_chart1.plot(num_stars=5000, star_labels=20, sort_filters=['mag'], reverse_flag=False)
+    rad_chart1.export("RadChart1.svg")
+
+    test_area = Area((8*15, 24*15), (-90, 0))
+    # squareChart1 = Stereographic((OBS_LOC, cur_time if current_time else OBS_TIME_AP),
+    #                              (size * 1.2, size), ORION_AREA, Orthographic=False)
+    # squareChart1.plot(num_stars=2000, star_labels=30, sort_filters=['mag'], reverse_flag=False)
+    # squareChart1.export("SquareChart1.svg")
+
     time2 = time.time()
     print(f'Entire script time: {time2-time1}')
 

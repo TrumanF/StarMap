@@ -13,11 +13,13 @@ chart_center = (CANVAS_X/2, CANVAS_Y/2)
 chartSVG = SVG(CANVAS_X, CANVAS_Y)
 
 
-ra_scope = degree_to_rad((0, 24*15))
-dec_scope = degree_to_rad((50, 90))
+ra_scope = degree_to_rad((10*15, 24*15))
+dec_scope = degree_to_rad((0, 90))
 
 ra_center = (ra_scope[0] + ra_scope[1])/2
 dec_center = (dec_scope[0] + dec_scope[1])/2
+# dec_center = math.radians(90)
+
 
 
 ra_range = abs(ra_scope[1] - ra_scope[0])
@@ -48,7 +50,7 @@ def ra_dec_to_xy(ra, dec):
         d = 1
     return x1 * d, y1 * d
 
-SCALE = 500
+SCALE = 200
 ra_space = np.linspace(ra_scope[0], ra_scope[1], 100)
 dec_space = np.linspace(dec_scope[0], dec_scope[1], 100)
 ra_sample = np.linspace(ra_scope[0], ra_scope[1], 8)

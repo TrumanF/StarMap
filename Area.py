@@ -15,6 +15,6 @@ class Area:
         self.center = ((self.RA_SCOPE[0] + self.RA_SCOPE[1])/2, (self.DEC_SCOPE[0] + self.DEC_SCOPE[1])/2)  # rads
 
 
-ORION_AREA = Area((4.5*15, 6.5*15), (-15, 15))
+ORION_AREA = Area((4.75*15, 6.5*15), (-12.5, 21))
 URSA_MINOR_AREA = Area((14*15, 18*15), (60, 90))
 BIG_DIPPER_AREA = Area((10.5*15, 14*15), (45, 65))
