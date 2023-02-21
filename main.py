@@ -25,7 +25,7 @@ OBS_TIME_AP = Time(f'{OBS_DATE}T{OBS_TIME}') - utcoffset
 # TODO: Constellation boxes/sections
 # TODO: Ecliptic path
 # TODO: Get color data for stars and lightly color each star as they're plotted
-# TODO: Load an observing plan and draw connections between those stars with redline
+# TODO: Load an observing plan and draw connections between those stars with a line
 # TODO: Revise SVG gradient, it doesn't look that good
 # TODO: Check if text overlaps with other text and fix that, also check if items go outside main chart
 # TODO: PNG and GIF support
@@ -51,15 +51,15 @@ def main():
 
     time1 = time.time()
 
-    rad_chart1 = AzimuthalEQHemisphere((OBS_LOC, cur_time if current_time else OBS_TIME_AP), (size*1.2, size))
-    rad_chart1.plot(num_stars=5000, star_labels=20, sort_filters=['mag'], reverse_flag=False)
-    rad_chart1.export("RadChart1.svg")
+    # rad_chart1 = AzimuthalEQHemisphere((OBS_LOC, cur_time if current_time else OBS_TIME_AP), (size*1.2, size))
+    # rad_chart1.plot(num_stars=5000, star_labels=20, sort_filters=['mag'], reverse_flag=False)
+    # rad_chart1.export("RadChart1.svg")
 
-    test_area = Area((8*15, 24*15), (-90, 0))
-    # squareChart1 = Stereographic((OBS_LOC, cur_time if current_time else OBS_TIME_AP),
-    #                              (size * 1.2, size), test_area, Orthographic=False)
-    # squareChart1.plot(num_stars=2000, star_labels=30, sort_filters=['mag'], reverse_flag=False)
-    # squareChart1.export("SquareChart1.svg")
+    test_area = Area((8*15, 24*15), (0, 90))
+    squareChart1 = Stereographic((OBS_LOC, cur_time if current_time else OBS_TIME_AP),
+                                 (size * 1.2, size), test_area, Orthographic=False)
+    squareChart1.plot(num_stars=2000, star_labels=30, sort_filters=['mag'], reverse_flag=False)
+    squareChart1.export("SquareChart1.svg")
 
     time2 = time.time()
     print(f'Entire script time: {time2-time1}')

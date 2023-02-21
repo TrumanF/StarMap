@@ -58,7 +58,7 @@ class Chart:
 
         self.min_star_size = 1
         self.max_star_size = 8
-
+        self.star_size_zero = 8
         self.sorted_stars_to_plot = []
 
         self.sso_list = []  # Note: probably needs a rename, something like 'active_sso_list' ?
@@ -231,8 +231,9 @@ class AzimuthalEQHemisphere(Chart):
         #  Although, I would have to call this function every time if I changed the main circle size
         min_mag, max_mag = mag_info
         # Note: Make this line below its own function and redo the normalization, maybe log scale?
-        star.size = self.max_star_size * (
-                1 - (star.mag - min_mag) / (max_mag - min_mag)) + self.min_star_size
+        # star.size = self.max_star_size * (
+        #         1 - (star.mag - min_mag) / (max_mag - min_mag)) + self.min_star_size
+        star.size = 10**(star.mag/(-10.25)) * self.star_size_zero + .25
         star.size *= self.SCALING_CONSTANT
         self.chartSVG.circle(star.x, star.y, star.size, star.color, fill="url(#StarGradient1)", width=0)
 
@@ -294,13 +295,12 @@ class AzimuthalEQHemisphere(Chart):
 class Stereographic(Chart):
     def __init__(self, OBS_INFO, CANVAS_INFO, area, Orthographic=False):
         self.ORTHOGRAPHIC = Orthographic
-        self.area_center = area.center  # rads
-        self.ra_center, self.dec_center = self.area_center  # rads
+        self.ra_center, self.dec_center = area.center   # rads
         self.RA_SCOPE = area.RA_SCOPE  # tuple, rads
         self.DEC_SCOPE = area.DEC_SCOPE  # tuple, rads
 
         if abs(self.RA_SCOPE[0] - self.RA_SCOPE[1]) > math.radians(12*15):
-            print("Setting dec_center")
+            print("Resetting dec_center")
             if abs(self.DEC_SCOPE[0]) < abs(self.DEC_SCOPE[1]):
                 self.dec_center = math.radians(90)
             else:
@@ -369,7 +369,7 @@ class Stereographic(Chart):
                 continue
             self.chartSVG.curve(curve, width=2, stroke_opacity=.5)
 
-        for ra_val in all_ra_lines:
+        for ra_val in all_ra_lines[:]:
             ra_val = math.radians(ra_val*15)
             curve = []
             last_point_added = True
@@ -391,6 +391,9 @@ class Stereographic(Chart):
                     last_point_added = False
             if len(curve) < 2:
                 continue
+            # to get rid of the 'singularity' that happens at cos(90degrees) for ra_dec_to_xy()
+            if abs(self.dec_center) == math.radians(90):
+                curve = curve[1:]
             self.chartSVG.curve(curve, width=2, stroke_opacity=.5)
 
         # drawing area asked for
@@ -482,6 +485,8 @@ class Stereographic(Chart):
         self.unit_BBOX = ((min_x[0], min_y[1]), (max_x[0], max_y[1]))
         self.BBOX = (self.scale_offset((min_x[0], min_y[1])),
                      self.scale_offset((max_x[0], max_y[1])))
+        print(self.BBOX)
+        print(self.unit_BBOX)
 
     def ra_dec_to_xy(self, ra, dec):
         # ra and dec input in radians
