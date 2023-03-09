@@ -76,16 +76,19 @@ import math
 # Note: The goal here is to ensure there's some minimum number of lines on the plot, if the scale is too small
 #  then break the divisions down into half hours, and if needed go to quarter hours, but no further than that
 #  For dec, do it whole degrees, half degrees, quarter degrees
+from math import sin, cos, asin, acos
 
-mi_ra_lines = 4
 
-ra_scope = (4.5*15, 6.5*15)
-ra_range = abs(ra_scope[1] - ra_scope[0])
-dec_scope = (-10, 10)
-dec_range = abs(dec_scope[1] - dec_scope[0])
+def ecliptic_to_equatorial(lambda_var, beta):
+    lambda_var = math.radians(lambda_var)
+    beta = math.radians(beta)
+    epsilon = math.radians(23.439)
+    # https://aas.aanda.org/articles/aas/full/1998/01/ds1449/node3.html
+    dec = asin(sin(beta)*cos(epsilon) + cos(beta)*sin(epsilon)*sin(lambda_var))
+    ra = acos((cos(lambda_var)*cos(beta))/cos(dec))
+    print(math.degrees(ra))
+    ra2 = asin((-sin(beta)*sin(epsilon)+cos(beta)*cos(epsilon)*sin(lambda_var))/cos(dec))
+    print(math.degrees(ra2))
+    return 0, math.degrees(dec)
 
-hour_steps = [x for x in range(math.ceil(ra_scope[0]/15), math.ceil(ra_scope[1]/15))]
-if len(hour_steps) < 4:
-    steps_needed = 4 - len(hour_steps)
-    half_hour_steps = np.arange(ra_scope[0]/15, ra_scope[1]/15, .5)
-    print(half_hour_steps)
+print(ecliptic_to_equatorial(270, 0))

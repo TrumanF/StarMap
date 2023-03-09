@@ -1,4 +1,5 @@
 import math
+from math import sin, cos, asin, acos, sqrt
 import abc
 import operator
 from multiprocessing import Pool
@@ -13,11 +14,20 @@ from astropy import units as u
 
 
 def polar_to_cartesian(r, theta):
-    return r * math.cos(theta), r * math.sin(theta)
+    return r * cos(theta), r * sin(theta)
 
 
-# TODO: Have constellations plot before stars, will need some reworking
-# Note: Add_star and add_sso are very similar, could be one function?
+def ecliptic_to_equatorial(lambda_var, beta):
+    epsilon = 23.439
+    # https://aas.aanda.org/articles/aas/full/1998/01/ds1449/node3.html
+    dec = asin(sin(beta)*cos(epsilon) + cos(beta)*sin(epsilon)*sin(lambda_var))
+    ra = acos((cos(lambda_var)*cos(beta))/cos(dec))
+    print(ra)
+    ra2 = asin((-sin(beta)*sin(epsilon)+cos(beta)*cos(epsilon)*sin(lambda_var))/cos(dec))
+    print(ra2)
+    return 0, dec
+
+
 class Chart:
     # Note: Read this shit
     # https://www.projectpluto.com/project.htm
@@ -26,7 +36,7 @@ class Chart:
         self.CANVAS_X, self.CANVAS_Y = CANVAS_INFO
         self.CANVAS_CENTER = (self.CANVAS_X/2, self.CANVAS_Y/2)
         self.chartSVG = SVG(self.CANVAS_X, self.CANVAS_Y,
-                            background_color='black')  # NOTE: Consider making this abstract
+                            background_color='black')
         self.CHART_ELEMENT_OPACITY = .25
         self.CHART_ELEMENT_WIDTH = 2.5
 
@@ -34,7 +44,7 @@ class Chart:
         self.AA = AltAz(location=self.OBS_LOC, obstime=self.OBS_TIME)  # AltAz frame from OBS_LOC and OBS_TIME
 
         self.star_df = pd.read_csv('Star CSV/hygdata_v3.csv', keep_default_na=False,
-                                   nrows=15000)  # Note: change this magic number to some variable
+                                   nrows=100000)  # Note: change this magic number to some variable
         self.star_list = []
         self.cons_dict = {'Cap': [], 'Pav': [], 'CMa': [], 'Peg': [], 'Ant': [], 'Sct': [], 'Cen': [], 'Tel': [],
                           'Ori': [], 'Cae': [], 'Hyi': [], 'Mon': [], 'Ari': [], 'Cet': [], 'Lib': [], 'Dra': [],
@@ -63,7 +73,7 @@ class Chart:
 
         self.sso_list = []  # Note: probably needs a rename, something like 'active_sso_list' ?
         self.possible_sso = ['sun', 'moon', 'mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune']
-        self.ssos_above_horizon = []  # Note: This should exist only in RadialChart
+        self.ssos_above_horizon = []
 
         for planet in self.possible_sso:
             self.add_sso(SSO(planet))
@@ -71,11 +81,27 @@ class Chart:
     # Note: This function isn't abstract but is overriden depending on the needs of the child chart
     #  Maybe it should be?
     def add_star(self, star):
+        """
+        Takes a Star() as input and adds it to star_list; plus sorting stars into their respective constellations.
+        Parameters:
+        ---------------
+        star (Star):   Star() object to be added to main star_list
+        ---------------
+        returns nothing
+        """
         if star.con != '':
             self.cons_dict[star.con].append(star)
         self.star_list.append(star)
 
     def process_star(self, i) -> Star:
+        """
+        Takes index of self.star_df and creates Star() object based on column headers from main star data CSV.
+        Parameters:
+        ---------------
+        i (int):  index of star data csv
+        ---------------
+        returns Star()
+        """
         # Processes star information from main star dataframe (star_df) and returns Star object
         new_star = Star(self.star_df['ra'][i], self.star_df['dec'][i], self.star_df['mag'][i], self.star_df['hd'][i],
                         self.star_df['bayer'][i], self.star_df['dist'][i], self.star_df['proper'][i],
@@ -84,6 +110,17 @@ class Chart:
 
     @staticmethod
     def sort_stars(list_to_sort, keys, reverse_flag=False):
+        """
+        Sorts input list according to keys and optional reverse flag.
+        Parameters:
+        ---------------
+        list_to_sort (list):   list of Star() objects to be sorted
+        keys (list):   list of attributes of Star() to be sorted by
+        reverse_flag (bool):   (optional) True indicates the list should be sorted backwards
+        NOTE: As it stands, this reverse flag applies to ALL keys.
+        ---------------
+        returns List of sorted Star() objects
+        """
         # Note: Should this be stars_above_horizon? Or all stars?
         # Note: Sorted() sucks, can't tell it which key needs to be reversed, just deal with it for now
         temp = sorted(list_to_sort, key=operator.attrgetter(*keys), reverse=reverse_flag)
@@ -91,6 +128,14 @@ class Chart:
         return temp
 
     def add_sso(self, sso):
+        """
+        Takes a SSO() object as input and preprocesses, then adds to main self.sso_list.
+        Parameters:
+        ---------------
+        sso (SSO):   SSO() object to be added to main sso_list
+        ---------------
+        returns nothing
+        """
         sso.coord = get_body(sso.name, self.AA.obstime, self.AA.location)
         sso.ra = sso.coord.ra.to_string(unit=u.deg, decimal=True)
         sso.dec = sso.coord.dec.to_string(unit=u.deg, decimal=True)
@@ -118,6 +163,17 @@ class Chart:
 
     @abc.abstractmethod
     def plot_stars(self, num_stars, sort_filters=None, reverse_flag=False, labels=None):
+        """
+        Call plot_star() function given certain parameters and filters.
+        Parameters:
+        ---------------
+        num_stars (int):   number of stars to plot
+        sort_filters (list): list of filters to apply to plotting list
+        reverse_flag (bool):   (optional) True indicates the list should be sorted backwards
+        labels (int): number of labels to put on plot, always plots from lowest to highest magnitude
+        ---------------
+        returns nothing
+        """
         if type(sort_filters) is not list:
             sort_filters = [sort_filters.lower()]
         # Note: This affects the plotting size, moved [:num_stars] to for loop when plotting if want universal scale
@@ -152,6 +208,7 @@ class AzimuthalEQHemisphere(Chart):
     # Uses Azimuthal equidistant projection
     def __init__(self, OBS_INFO, CANVAS_INFO):
         self.stars_above_horizon = []
+
         super().__init__(OBS_INFO, CANVAS_INFO)
         self.MAIN_CIRCLE_R = (self.CANVAS_Y * .9) / 2  # Note: Change multiplier to parameter
         self.SCALING_CONSTANT = self.MAIN_CIRCLE_R / 675.0  # Based on visual preference from other charts
@@ -187,6 +244,7 @@ class AzimuthalEQHemisphere(Chart):
 
         # print compass directions
         text_size = 50 * self.SCALING_CONSTANT
+        # NOTE: This could all be done in a loop - would it be less readable? (?)
         self.chartSVG.text(self.MAIN_CIRCLE_CX, self.MAIN_CIRCLE_CY + self.MAIN_CIRCLE_R, "N", size=text_size,
                            color="white", dx=-15*self.SCALING_CONSTANT, dy=20*self.SCALING_CONSTANT)
         self.chartSVG.text(self.MAIN_CIRCLE_CX, self.MAIN_CIRCLE_CY - self.MAIN_CIRCLE_R, "S", size=text_size,
@@ -230,7 +288,7 @@ class AzimuthalEQHemisphere(Chart):
         #  coords would be the same
         #  Although, I would have to call this function every time if I changed the main circle size
         min_mag, max_mag = mag_info
-        # Note: Make this line below its own function and redo the normalization, maybe log scale?
+        # Note: Make this line below its own function and redo the normalization, maybe log scale? (?)
         # star.size = self.max_star_size * (
         #         1 - (star.mag - min_mag) / (max_mag - min_mag)) + self.min_star_size
         star.size = 10**(star.mag/(-10.25)) * self.star_size_zero + .25
@@ -316,6 +374,8 @@ class Stereographic(Chart):
         self.unit_BBOX = None
         self.BBOX = None
         self.SCALE = None
+        self.BBOX_H = None
+        self.BBOX_W = None
         self.set_scale()
 
         # call function to create base chart
@@ -343,6 +403,7 @@ class Stereographic(Chart):
         all_ra_lines = np.arange(0, 24, 1)
         sample_ra_values = np.linspace(0, 24, 5000)
         all_dec_lines = np.arange(-90, 90, 10)
+
         sample_dec_values = np.linspace(-90, 90, 5000)
 
         for dec_val in all_dec_lines[1:]:
@@ -401,7 +462,8 @@ class Stereographic(Chart):
             curve = []
             for ra in ra_space:
                 point = self.ra_dec_to_xy(ra, dec_samp)
-                point = (point[0] * self.SCALE + self.CANVAS_CENTER[0], -point[1] * self.SCALE + self.CANVAS_CENTER[1])
+                point = (point[0] * self.SCALE + self.CANVAS_CENTER[0],
+                         -point[1] * self.SCALE + self.CANVAS_CENTER[1])
                 curve.append(point)
             self.chartSVG.curve(curve, width=2, stroke_opacity=.25, color='blue')
         if self.RA_SCOPE[1] - self.RA_SCOPE[0] != math.pi*2:
@@ -409,7 +471,8 @@ class Stereographic(Chart):
                 curve = []
                 for dec in dec_space:
                     point = self.ra_dec_to_xy(ra_samp, dec)
-                    point = (point[0] * self.SCALE + self.CANVAS_CENTER[0], -point[1] * self.SCALE + self.CANVAS_CENTER[1])
+                    point = (point[0] * self.SCALE + self.CANVAS_CENTER[0],
+                             -point[1] * self.SCALE + self.CANVAS_CENTER[1])
                     curve.append(point)
                 self.chartSVG.curve(curve, width=2, stroke_opacity=.25, color='blue')
         if bbox:
@@ -428,6 +491,7 @@ class Stereographic(Chart):
         # self.plot_preprocess_obj(star)
         min_mag, max_mag = mag_info
         # make line below its own function?
+        # Note: max_mag - min_mag breaks if only 1 star will be displayed
         star.size = self.max_star_size * (
                 1 - (star.mag - min_mag) / (max_mag - min_mag)) + self.min_star_size
         self.chartSVG.circle(star.x, star.y,
@@ -435,11 +499,10 @@ class Stereographic(Chart):
 
     def plot_stars(self, num_stars, sort_filters=None, reverse_flag=False, labels=None):
         super().plot_stars(num_stars, sort_filters=sort_filters, reverse_flag=reverse_flag, labels=labels)
-        # Note: Come back to labels
         if labels:
             for star in self.sorted_stars_to_plot[:num_stars][:labels]:
                 self.chartSVG.text(star.x, star.y,
-                                   star.name.capitalize() if star.name else star.hd, color=star.color,
+                                   star.name.capitalize() if star.name else star.hd, color='blue',
                                    dx=5 + star.size, size=15)
 
     # TODO: Check if plotting will occur outside BBOX
@@ -481,23 +544,24 @@ class Stereographic(Chart):
 
         scales = ((self.MAX_X_SIZE / (max_x[0] - min_x[0])), (self.MAX_Y_SIZE / (max_y[1] - min_y[1])))
         self.SCALE = min(scales)
-        # Note: Maybe BBOX should be scaled when actually being plotted?
+
         self.unit_BBOX = ((min_x[0], min_y[1]), (max_x[0], max_y[1]))
+        self.BBOX_W = (max_x[0] - min_x[0]) * self.SCALE
+        self.BBOX_H = (max_y[1] - min_y[1]) * self.SCALE
+
         self.BBOX = (self.scale_offset((min_x[0], min_y[1])),
                      self.scale_offset((max_x[0], max_y[1])))
-        print(self.BBOX)
-        print(self.unit_BBOX)
 
     def ra_dec_to_xy(self, ra, dec):
         # ra and dec input in radians
         delta_ra = ra - self.ra_center
-        x = math.cos(dec) * math.sin(delta_ra)
-        y = math.sin(dec) * math.cos(self.dec_center) - math.cos(dec) * math.cos(delta_ra) * math.sin(self.dec_center)
+        x = cos(dec) * math.sin(delta_ra)
+        y = sin(dec) * cos(self.dec_center) - cos(dec) * cos(delta_ra) * sin(self.dec_center)
 
-        z1 = math.sin(dec) * math.sin(self.dec_center) + math.cos(dec) * math.cos(self.dec_center) * math.cos(delta_ra)
+        z1 = sin(dec) * math.sin(self.dec_center) + cos(dec) * cos(self.dec_center) * cos(delta_ra)
         if not self.ORTHOGRAPHIC:
             if z1 < -.9:
-                d = 20 * math.sqrt((1 - .81) / (1.00000001 - z1 * z1))
+                d = 20 * sqrt((1 - .81) / (1.00000001 - z1 * z1))
             else:
                 d = 2 / (z1 + 1)
         else:
@@ -507,7 +571,9 @@ class Stereographic(Chart):
 
     def scale_offset(self, point):
         # input unit coordinates, tuple, (x, y)
-        return point[0] * self.SCALE + self.CANVAS_CENTER[0], point[1] * self.SCALE + self.CANVAS_CENTER[1]
+        return point[0] * self.SCALE + self.CANVAS_CENTER[0], \
+               point[1] * self.SCALE + self.CANVAS_CENTER[1]
+    # + (self.CANVAS_CENTER[1] - self.BBOX_H/2)
 
     def check_in_BBOX(self, point):
         # input unit coordinates, tuple, (x, y)

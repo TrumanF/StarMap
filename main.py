@@ -21,7 +21,7 @@ OBS_TIME_AP = Time(f'{OBS_DATE}T{OBS_TIME}') - utcoffset
 # TODO: Make some class that will generate the base template for me, that way it can have different skins easily (?)
 # TODO: Revisit normalization function for magnitude -> drawing size - I think maybe a gentle log scale would be best
 # TODO: Add various legends to show magnitude scale, compass directions, labels for planets and sun/moon
-# TODO: Constellation lines
+# TODO: Constellation lines (started, but unfinished)
 # TODO: Constellation boxes/sections
 # TODO: Ecliptic path
 # TODO: Get color data for stars and lightly color each star as they're plotted
@@ -42,8 +42,8 @@ OBS_TIME_AP = Time(f'{OBS_DATE}T{OBS_TIME}') - utcoffset
 # TODO: Be able to plot max magnitude numbers, i.e. no dimmer than 5
 # TODO: Create area, where certain star is centered and FOV can be specified
 # TODO: Make 3D view using distance (?)
+# TODO: Create more rigid way for labels to be added to chart
 
-# TODO: Figure out exactly why hemisphere can't be plotted
 def main():
     current_time = True
     cur_time = Time("T".join(str(datetime.datetime.now()).split(" "))) - utcoffset
@@ -55,11 +55,13 @@ def main():
     # rad_chart1.plot(num_stars=5000, star_labels=20, sort_filters=['mag'], reverse_flag=False)
     # rad_chart1.export("RadChart1.svg")
 
-    test_area = Area((8*15, 24*15), (0, 90))
+    test_area = Area.from_RADec((88.8, 7.4), (2, 2))
+
     squareChart1 = Stereographic((OBS_LOC, cur_time if current_time else OBS_TIME_AP),
                                  (size * 1.2, size), test_area, Orthographic=False)
     squareChart1.plot(num_stars=2000, star_labels=30, sort_filters=['mag'], reverse_flag=False)
     squareChart1.export("SquareChart1.svg")
+
 
     time2 = time.time()
     print(f'Entire script time: {time2-time1}')
