@@ -6,7 +6,7 @@ from multiprocessing import Pool
 
 from SVG import SVG
 from Body import Star, SSO
-
+from Properties import PlotProperties as pp
 import pandas as pd
 import numpy as np
 from astropy.coordinates import AltAz, get_body
@@ -28,6 +28,36 @@ def ecliptic_to_equatorial(lambda_var, beta):
     return 0, dec
 
 
+# NOTE: THIS LINE NEEDS TO BE MOVED SOMEWHERE SO IT DOESN'T RUN EVERY TIME
+star_df = pd.read_csv('Star CSV/hygdata_v3.csv', keep_default_na=False, nrows=100000)
+master_star_list = []
+
+
+def create_star(i) -> Star:
+    """
+    Takes index of self.star_df and creates Star() object based on column headers from main star data CSV.
+    Parameters:
+    ---------------
+    i (int):  index of star data csv
+    ---------------
+    returns Star()
+    """
+    # Processes star information from main star dataframe (star_df) and returns Star object
+    new_star = Star(star_df['ra'][i], star_df['dec'][i], star_df['mag'][i], star_df['hd'][i],
+                    star_df['bayer'][i], star_df['dist'][i], star_df['proper'][i],
+                    con=star_df['con'][i])
+    return new_star
+
+
+def gen_master_list():
+    with Pool() as pool:
+        result = pool.map_async(create_star, star_df.index)
+        pool.close()
+        pool.join()
+    for star in result.get():
+        master_star_list.append(star)
+
+
 class Chart:
     # Note: Read this shit
     # https://www.projectpluto.com/project.htm
@@ -43,9 +73,6 @@ class Chart:
         self.OBS_LOC, self.OBS_TIME = OBS_INFO  # astropy EarthLocation and Time objects
         self.AA = AltAz(location=self.OBS_LOC, obstime=self.OBS_TIME)  # AltAz frame from OBS_LOC and OBS_TIME
 
-        self.star_df = pd.read_csv('Star CSV/hygdata_v3.csv', keep_default_na=False,
-                                   nrows=100000)  # Note: change this magic number to some variable
-        self.star_list = []
         self.cons_dict = {'Cap': [], 'Pav': [], 'CMa': [], 'Peg': [], 'Ant': [], 'Sct': [], 'Cen': [], 'Tel': [],
                           'Ori': [], 'Cae': [], 'Hyi': [], 'Mon': [], 'Ari': [], 'Cet': [], 'Lib': [], 'Dra': [],
                           'Lup': [], 'Del': [], 'Men': [], 'Oct': [], 'Aur': [], 'Lyr': [], 'Cru': [], 'Cam': [],
@@ -57,18 +84,16 @@ class Chart:
                           'TrA': [], 'Hor': [], 'Vul': [], 'PsA': [], 'Ara': [], 'Sgr': [], 'Phe': [], 'Aps': [],
                           'Com': [], 'CrB': [], 'Ret': [], 'Vir': [], 'Crv': [], 'Lyn': [], 'Gem': [], 'Tau': [],
                           'Vel': [], 'Crt': [], 'Boo': [], 'For': [], 'Vol': [], 'Ind': [], 'Cnc': [], 'Equ': []}
+        global master_star_list
+        if not master_star_list:
+            gen_master_list()
 
-        # NOTE: Read more about pool.map_async()
-        with Pool() as pool:
-            result = pool.map_async(self.process_star, self.star_df.index)
-            pool.close()
-            pool.join()
-        for star in result.get():
-            self.add_star(star)
+        self.available_stars = {}
 
         self.min_star_size = 1
         self.max_star_size = 8
         self.star_size_zero = 8
+        self.mag_info = None
         self.sorted_stars_to_plot = []
 
         self.sso_list = []  # Note: probably needs a rename, something like 'active_sso_list' ?
@@ -78,36 +103,7 @@ class Chart:
         for planet in self.possible_sso:
             self.add_sso(SSO(planet))
 
-    # Note: This function isn't abstract but is overriden depending on the needs of the child chart
-    #  Maybe it should be?
-    def add_star(self, star):
-        """
-        Takes a Star() as input and adds it to star_list; plus sorting stars into their respective constellations.
-        Parameters:
-        ---------------
-        star (Star):   Star() object to be added to main star_list
-        ---------------
-        returns nothing
-        """
-        if star.con != '':
-            self.cons_dict[star.con].append(star)
-        self.star_list.append(star)
-
-    def process_star(self, i) -> Star:
-        """
-        Takes index of self.star_df and creates Star() object based on column headers from main star data CSV.
-        Parameters:
-        ---------------
-        i (int):  index of star data csv
-        ---------------
-        returns Star()
-        """
-        # Processes star information from main star dataframe (star_df) and returns Star object
-        new_star = Star(self.star_df['ra'][i], self.star_df['dec'][i], self.star_df['mag'][i], self.star_df['hd'][i],
-                        self.star_df['bayer'][i], self.star_df['dist'][i], self.star_df['proper'][i],
-                        con=self.star_df['con'][i])
-        return new_star
-
+    # TODO: THIS SHIT BROKEN WITH NEW SYSTEM FIX IT
     @staticmethod
     def sort_stars(list_to_sort, keys, reverse_flag=False):
         """
@@ -123,9 +119,9 @@ class Chart:
         """
         # Note: Should this be stars_above_horizon? Or all stars?
         # Note: Sorted() sucks, can't tell it which key needs to be reversed, just deal with it for now
-        temp = sorted(list_to_sort, key=operator.attrgetter(*keys), reverse=reverse_flag)
-
-        return temp
+        temp = sorted([master_star_list[i] for i in list_to_sort], key=operator.attrgetter(*keys), reverse=reverse_flag)
+        sorted_indices = [master_star_list.index(x) for x in temp]  # This is probably slow as shit, not sure yet
+        return sorted_indices
 
     def add_sso(self, sso):
         """
@@ -158,7 +154,7 @@ class Chart:
         pass
 
     @abc.abstractmethod
-    def plot_star(self, star, mag_info):
+    def plot_star(self, star):
         pass
 
     @abc.abstractmethod
@@ -176,26 +172,30 @@ class Chart:
         """
         if type(sort_filters) is not list:
             sort_filters = [sort_filters.lower()]
-        # Note: This affects the plotting size, moved [:num_stars] to for loop when plotting if want universal scale
 
-        match self:
-            case AzimuthalEQHemisphere():
-                self.sorted_stars_to_plot = self.sort_stars(self.stars_above_horizon, sort_filters, reverse_flag)[:num_stars]
-            case Stereographic():
-                self.sorted_stars_to_plot = self.sort_stars(self.stars_in_range, sort_filters, reverse_flag)[:num_stars]
+        self.sorted_stars_to_plot = self.sort_stars(self.available_stars.keys(), sort_filters, reverse_flag)[:num_stars]
+
         # Note: This can be made faster in some scenarios where sorted_stars already is sorted by mag
-        sorted_stars_mag_sorted = [st.mag for st in sorted(self.sorted_stars_to_plot, key=lambda s: s.mag)]
-        min_mag = min(sorted_stars_mag_sorted)
-        max_mag = max(sorted_stars_mag_sorted)
+
+        sorted_stars_mag_sorted_indices = self.sort_stars(self.sorted_stars_to_plot, ['mag'])
+
+        sorted_stars_mag_sorted = [master_star_list[i] for i in sorted_stars_mag_sorted_indices]
+
+        sorted_stars_mag_list = [st.mag for st in sorted(sorted_stars_mag_sorted, key=lambda s: s.mag)]
+
+        min_mag = min(sorted_stars_mag_list)
+        max_mag = max(sorted_stars_mag_list)
+        self.mag_info = (min_mag, max_mag)
+
         # Check if requested number of stars is greater than amount available to be on plot
         if num_stars > len(self.sorted_stars_to_plot):
             num_stars = len(self.sorted_stars_to_plot) - 1
             print(f"Number of stars requested is greater than available to plot, setting number to {num_stars}")
-        for star in self.sorted_stars_to_plot:
-            self.plot_star(star, (min_mag, max_mag))
+        for star_index in self.sorted_stars_to_plot:
+            self.plot_star(star_index)
 
     def plot(self, num_stars=500, sort_filters='mag', reverse_flag=False, star_labels=None):
-        self.plot_constellations(['Ori'])
+        # self.plot_constellations(['Ori'])
         if num_stars:
             self.plot_stars(num_stars, sort_filters, reverse_flag, star_labels)
 
@@ -381,19 +381,23 @@ class Stereographic(Chart):
         # call function to create base chart
         self.add_base_elements()
 
-        self.stars_in_range = []
         self.find_stars_in_range()
 
-        for star in self.stars_in_range:
-            star.x, star.y = self.scale_offset((star.unit_x, star.unit_y))
+        for star in self.available_stars:
+            self.available_stars[star].x, self.available_stars[star].y = \
+                self.scale_offset((self.available_stars[star].unit_x, self.available_stars[star].unit_y))
 
         self.min_star_size = .75
         self.max_star_size = 10
 
     def find_stars_in_range(self):
-        for star in self.star_list:
-            if self.check_in_BBOX((star.unit_x, star.unit_y)):
-                self.stars_in_range.append(star)
+        for i, star in enumerate(master_star_list):
+            unit_x, unit_y = self.ra_dec_to_xy(math.radians(star.ra), math.radians(star.dec))
+            if self.check_in_BBOX((unit_x, unit_y)):
+                new_pp = pp()
+                new_pp.unit_x = unit_x
+                new_pp.unit_y = unit_y
+                self.available_stars[i] = new_pp
 
     # TODO: Add plotting of half and quarter RA/Dec lines
     def add_base_elements(self, bbox=True):
@@ -479,31 +483,23 @@ class Stereographic(Chart):
             self.chartSVG.rect(self.BBOX[0][0], self.BBOX[1][1], self.BBOX[1][0] - self.BBOX[0][0],
                                self.BBOX[1][1] - self.BBOX[0][1], fill="None")
 
-    def process_star(self, i) -> Star:
-        new_star = super().process_star(i)
-        self.plot_preprocess_obj(new_star)
-        return new_star
-
-    def plot_preprocess_obj(self, cel_obj):
-        cel_obj.unit_x, cel_obj.unit_y = self.ra_dec_to_xy(math.radians(cel_obj.ra), math.radians(cel_obj.dec))
-
-    def plot_star(self, star, mag_info):
-        # self.plot_preprocess_obj(star)
-        min_mag, max_mag = mag_info
-        # make line below its own function?
+    def plot_star(self, star_index):
+        min_mag, max_mag = self.mag_info
         # Note: max_mag - min_mag breaks if only 1 star will be displayed
-        star.size = self.max_star_size * (
-                1 - (star.mag - min_mag) / (max_mag - min_mag)) + self.min_star_size
-        self.chartSVG.circle(star.x, star.y,
-                             star.size, star.color, fill="url(#StarGradient1)", width=0)
+        self.available_stars[star_index].size = self.max_star_size * (
+                1 - (master_star_list[star_index].mag - min_mag) / (max_mag - min_mag)) + self.min_star_size
+
+        self.chartSVG.circle(self.available_stars[star_index].x, self.available_stars[star_index].y,
+                             self.available_stars[star_index].size, master_star_list[star_index].color,
+                             fill="url(#StarGradient1)", width=0)
 
     def plot_stars(self, num_stars, sort_filters=None, reverse_flag=False, labels=None):
         super().plot_stars(num_stars, sort_filters=sort_filters, reverse_flag=reverse_flag, labels=labels)
-        if labels:
-            for star in self.sorted_stars_to_plot[:num_stars][:labels]:
-                self.chartSVG.text(star.x, star.y,
-                                   star.name.capitalize() if star.name else star.hd, color='blue',
-                                   dx=5 + star.size, size=15)
+        # if labels:
+        #     for star in self.sorted_stars_to_plot[:num_stars][:labels]:
+        #         self.chartSVG.text(star.x, star.y,
+        #                            star.name.capitalize() if star.name else star.hd, color='blue',
+        #                            dx=5 + star.size, size=15)
 
     # TODO: Check if plotting will occur outside BBOX
     def plot_constellations(self, constellations):
