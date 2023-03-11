@@ -1,35 +1,31 @@
-from astropy.coordinates import SkyCoord
-
-
 class Star:
-    def __init__(self, ra, dec, mag, star_hd, bayer, distance=None, name=None, con=None, color="white"):
+    def __init__(self, ra, dec, mag, hd, bayer, dist=None, name=None, con=None, color="white", **kwargs):
         self.ra = float(ra) * 15  # comes in as Hour angle so convert to degrees by multiplying 15
         self.dec = float(dec)  # degrees
         self.mag = float(mag)  # unit-less
-        self.hd = star_hd
+        self.hd = hd
         self.bayer = bayer
-        self.dist = distance  # parsec
+        self.dist = dist  # parsec
         self.con = con  # string: shortened name of constellation
-
         self.az = None  # radians
         self.alt = None  # degrees
         self.normalized_alt = None
-        self.coord = SkyCoord(self.ra, self.dec, unit="deg")
 
         self.name = name
         self.color = color
 
-        # star coordinates after scaling and offsetting on the SVG
-        self.x = None
-        self.y = None
-
-        self.size = 1  # radius to be plotted
-
     def __repr__(self):
-        return f"({self.name if self.name else 'No name':^10}/{self.bayer if self.bayer else 'No bayer':^6} | " \
+        return f"{self.name if self.name else 'No name':^10}/{self.bayer if self.bayer else 'No bayer':^6} | " \
                f"RA/Dec: {str((self.ra, self.dec)):^38} | " \
-               f"Alt/Az: {str((self.alt, self.az)):^30} | MAG: {self.mag:^10} | Distance (parsec): {self.dist:^20} | " \
-               f"X/Y: {str((self.x, self.y)):^20}\n"
+               f"Alt/Az: {str((self.alt, self.az)):^30} | MAG: {self.mag:^10} | " \
+               f"Distance (parsec): {self.dist if self.dist else 'N/A':^20}\n"
+
+    @classmethod
+    def from_dict(cls, **kwargs):
+        new_star = cls(**kwargs)
+        for k, v in kwargs.items():
+            setattr(new_star, k, v)
+        return new_star
 
 
 class SSO:

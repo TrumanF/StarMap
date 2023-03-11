@@ -51,31 +51,31 @@ def main():
 
     time1 = time.time()
 
-    # rad_chart1 = AzimuthalEQHemisphere((OBS_LOC, cur_time if current_time else OBS_TIME_AP), (size*1.2, size))
-    # rad_chart1.plot(num_stars=5000, star_labels=20, sort_filters=['mag'], reverse_flag=False)
-    # rad_chart1.export("RadChart1.svg")
+    rad_chart1 = AzimuthalEQHemisphere((OBS_LOC, cur_time if current_time else OBS_TIME_AP), (size*1.2, size))
+    rad_chart1.plot(num_stars=5000, star_labels=20, sort_filters=['mag'], reverse_flag=False)
+    rad_chart1.export("RadChart1.svg")
 
-    test_area = Area.from_RADec((88.8, 7.4), (50, 50))
-
-    squareChart1 = Stereographic((OBS_LOC, cur_time if current_time else OBS_TIME_AP),
-                                 (size * 1.2, size), test_area, Orthographic=False)
-    squareChart1.plot(num_stars=2000, star_labels=30, sort_filters=['mag'], reverse_flag=False)
-    squareChart1.export("SquareChart1.svg")
-    time2 = time.time()
-    squareChart2 = Stereographic((OBS_LOC, cur_time if current_time else OBS_TIME_AP),
-                                 (size * 1.2, size), BIG_DIPPER_AREA, Orthographic=False)
-    squareChart2.plot(num_stars=2000, star_labels=30, sort_filters=['mag'], reverse_flag=False)
-    squareChart2.export("SquareChart2.svg")
-    time3 = time.time()
-    squareChart3 = Stereographic((OBS_LOC, cur_time if current_time else OBS_TIME_AP),
-                                 (size * 1.2, size), URSA_MINOR_AREA, Orthographic=False)
-    squareChart3.plot(num_stars=2000, star_labels=30, sort_filters=['mag'], reverse_flag=False)
-    squareChart3.export("SquareChart3.svg")
+    # test_area = Area.from_RADec((88.8, 7.4), (50, 50))
+    #
+    # squareChart1 = Stereographic((OBS_LOC, cur_time if current_time else OBS_TIME_AP),
+    #                              (size * 1.2, size), BIG_DIPPER_AREA, Orthographic=False)
+    # squareChart1.plot(num_stars=2000, star_labels=30, sort_filters=['mag'], reverse_flag=False)
+    # squareChart1.export("SquareChart1.svg")
+    # time2 = time.time()
+    # squareChart2 = Stereographic((OBS_LOC, cur_time if current_time else OBS_TIME_AP),
+    #                              (size * 1.2, size), test_area, Orthographic=False)
+    # squareChart2.plot(num_stars=2000, star_labels=30, sort_filters=['mag'], reverse_flag=False)
+    # squareChart2.export("SquareChart2.svg")
+    # time3 = time.time()
+    # squareChart3 = Stereographic((OBS_LOC, cur_time if current_time else OBS_TIME_AP),
+    #                              (size * 1.2, size), ORION_AREA, Orthographic=False)
+    # squareChart3.plot(num_stars=2000, star_labels=30, sort_filters=['mag'], reverse_flag=False)
+    # squareChart3.export("SquareChart3.svg")
     time4 = time.time()
 
-    print(f'Chart1 time: {time2 - time1}')
-    print(f'Chart2 time: {time3 - time2}')
-    print(f'Chart3 time: {time4 - time3}')
+    # print(f'Chart1 time: {time2 - time1}')
+    # print(f'Chart2 time: {time3 - time2}')
+    # print(f'Chart3 time: {time4 - time3}')
     print(f'Entire script time: {time4 - time1}')
 
 

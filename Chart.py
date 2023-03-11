@@ -3,16 +3,19 @@ from math import sin, cos, asin, acos, sqrt
 import abc
 import operator
 from multiprocessing import Pool
+import os.path
+import json
 
 from SVG import SVG
 from Body import Star, SSO
-from Properties import PlotProperties as pp
+from Properties import PlotProperties as pp, AzimuthalProperties as ap
 import pandas as pd
 import numpy as np
-from astropy.coordinates import AltAz, get_body
+from astropy.coordinates import AltAz, get_body, SkyCoord
 from astropy import units as u
 
 
+import time
 def polar_to_cartesian(r, theta):
     return r * cos(theta), r * sin(theta)
 
@@ -85,8 +88,21 @@ class Chart:
                           'Com': [], 'CrB': [], 'Ret': [], 'Vir': [], 'Crv': [], 'Lyn': [], 'Gem': [], 'Tau': [],
                           'Vel': [], 'Crt': [], 'Boo': [], 'For': [], 'Vol': [], 'Ind': [], 'Cnc': [], 'Equ': []}
         global master_star_list
+        time1 = time.time()
         if not master_star_list:
-            gen_master_list()
+            if os.path.isfile("master_star_list.json"):
+                with open("master_star_list.json", "r") as openfile:
+                    json_object = json.load(openfile)
+                for obj in json_object:
+                    master_star_list.append(Star.from_dict(**obj))
+                time2 = time.time()
+            else:
+                gen_master_list()
+                jsonString = json.dumps([x.__dict__ for x in master_star_list])
+                with open("master_star_list.json", "w") as outfile:
+                    outfile.write(jsonString)
+                time2 = time.time()
+            print(f'Master list time: {time2 - time1} | {len(master_star_list)}')
 
         self.available_stars = {}
 
@@ -122,6 +138,10 @@ class Chart:
         temp = sorted([master_star_list[i] for i in list_to_sort], key=operator.attrgetter(*keys), reverse=reverse_flag)
         sorted_indices = [master_star_list.index(x) for x in temp]  # This is probably slow as shit, not sure yet
         return sorted_indices
+
+    @abc.abstractmethod
+    def find_stars_in_range(self, stars_to_load):
+        pass
 
     def add_sso(self, sso):
         """
@@ -216,14 +236,12 @@ class AzimuthalEQHemisphere(Chart):
         # Note: Maybe rename to CHART_CX, CY to be consistent with terminology in other charts
         self.MAIN_CIRCLE_CX = self.CANVAS_X / 2
         self.MAIN_CIRCLE_CY = self.CANVAS_Y / 2
-
-        for star in self.stars_above_horizon:
-            self.plot_preprocess_obj(star)
         # call function to create base chart
         self.add_base_elements()
+        self.find_stars_in_range(5000)
 
     def __repr__(self):
-        return f'RadialChart | Stars loaded: {len(self.star_list)} | SSOs loaded :{len(self.sso_list)}'
+        return f'RadialChart | Stars available: {len(self.available_stars)} | SSOs loaded :{len(self.sso_list)}'
 
     def add_base_elements(self):
         self.chartSVG.circle(self.MAIN_CIRCLE_CX, self.MAIN_CIRCLE_CY, self.MAIN_CIRCLE_R, "white",
@@ -254,19 +272,46 @@ class AzimuthalEQHemisphere(Chart):
         self.chartSVG.text(self.MAIN_CIRCLE_CX - self.MAIN_CIRCLE_R, self.MAIN_CIRCLE_CY, "E", size=text_size,
                            color="white", dx=-45*self.SCALING_CONSTANT, dy=-15*self.SCALING_CONSTANT)
 
-    def process_star(self, i) -> Star:
-        new_star = super().process_star(i)
-        star_altaz_frame = new_star.coord.transform_to(self.AA)
-        new_star.az = float(star_altaz_frame.az.to_string(unit=u.rad, decimal=True))
-        new_star.alt = float(star_altaz_frame.alt.to_string(unit=u.deg, decimal=True))
+    def find_stars_in_range(self, stars_to_load):
+        with Pool() as pool:
+            result = pool.map_async(self.process_star, enumerate(master_star_list))
+            pool.close()
+            pool.join()
+        for t in result.get():
+            if t is not None:
+                i, new_ap = t
+                self.available_stars[i] = new_ap
+        for star_index in self.available_stars.keys():
+            self.plot_preprocess_star(star_index)
 
-        return new_star
+    def process_star(self, star_tuple):
+        star_index, star = star_tuple
+        # print(star_index)
+        # print(master_star_list)
+        coord = SkyCoord(star.ra, star.dec, unit="deg")
+        star_altaz_frame = coord.transform_to(self.AA)
+        az = float(star_altaz_frame.az.to_string(unit=u.rad, decimal=True))
+        alt = float(star_altaz_frame.alt.to_string(unit=u.deg, decimal=True))
+        if alt > 0:
+            new_ap = ap()
+            new_ap.coord = coord
+            new_ap.az = az
+            new_ap.alt = alt
+            return star_index, new_ap
+            # self.plot_preprocess_star(i)
 
-    def add_star(self, star):
-        # Accepts Star object and adds to main star_list
-        if star.alt > 0:
-            self.stars_above_horizon.append(star)
-        super().add_star(star)
+        # for i, star in enumerate(master_star_list[:stars_to_load]):
+        #     coord = SkyCoord(star.ra, star.dec, unit="deg")
+        #     star_altaz_frame = coord.transform_to(self.AA)
+        #     az = float(star_altaz_frame.az.to_string(unit=u.rad, decimal=True))
+        #     alt = float(star_altaz_frame.alt.to_string(unit=u.deg, decimal=True))
+        #     if alt > 0:
+        #         new_ap = ap()
+        #         new_ap.coord = coord
+        #         new_ap.az = az
+        #         new_ap.alt = alt
+        #         self.available_stars[i] = new_ap
+        #         self.plot_preprocess_star(i)
 
     def plot_preprocess_obj(self, cel_obj):
         cel_obj.normalized_alt = -1 * (cel_obj.alt / 90 - 1)
@@ -275,25 +320,32 @@ class AzimuthalEQHemisphere(Chart):
         # -az because AZ increases to the east and add pi/2 to ensure north is up
         cel_obj.x, cel_obj.y = -x + self.MAIN_CIRCLE_CX, y + self.MAIN_CIRCLE_CY
 
+    def plot_preprocess_star(self, star_index):
+        self.available_stars[star_index].normalized_alt = -1 * (self.available_stars[star_index].alt / 90 - 1)
+        # stars with 90 should plot at center, stars with zero should be on edge, so normalize and reverse direction
+        x, y = polar_to_cartesian((self.available_stars[star_index].normalized_alt * self.MAIN_CIRCLE_R),
+                                  -self.available_stars[star_index].az + math.pi / 2)
+        # -az because AZ increases to the east and add pi/2 to ensure north is up
+        self.available_stars[star_index].x, self.available_stars[star_index].y = \
+            -x + self.MAIN_CIRCLE_CX, y + self.MAIN_CIRCLE_CY
+
     def plot(self, num_stars=500, SSOs=True, sort_filters='mag', reverse_flag=False, star_labels=None):
         super().plot(num_stars=num_stars, sort_filters=sort_filters, reverse_flag=reverse_flag,
                      star_labels=star_labels)
         if SSOs:
             self.plot_ssos(SSOs)
 
-    def plot_star(self, star, mag_info):
-
-        # Note: This works great, but if I wanted to plot again with different
-        #  visual parameters, I'd have to re-preprocess, which doesn't need to happen since the xy
-        #  coords would be the same
-        #  Although, I would have to call this function every time if I changed the main circle size
-        min_mag, max_mag = mag_info
+    def plot_star(self, star_index):
+        min_mag, max_mag = self.mag_info
         # Note: Make this line below its own function and redo the normalization, maybe log scale? (?)
         # star.size = self.max_star_size * (
         #         1 - (star.mag - min_mag) / (max_mag - min_mag)) + self.min_star_size
-        star.size = 10**(star.mag/(-10.25)) * self.star_size_zero + .25
-        star.size *= self.SCALING_CONSTANT
-        self.chartSVG.circle(star.x, star.y, star.size, star.color, fill="url(#StarGradient1)", width=0)
+
+        self.available_stars[star_index].size = 10**(master_star_list[star_index].mag/(-10.25)) * self.star_size_zero + .25
+        self.available_stars[star_index].size *= self.SCALING_CONSTANT
+        self.chartSVG.circle(self.available_stars[star_index].x, self.available_stars[star_index].y,
+                             self.available_stars[star_index].size, master_star_list[star_index].color,
+                             fill="url(#StarGradient1)", width=0)
 
     # TODO: Make better 'labels' flag, maybe can specify by filter which stars get labels
     #  Use a similar sorted() thing, to specify highest mag labs, ra, dec, etc... Random labels too
@@ -304,10 +356,10 @@ class AzimuthalEQHemisphere(Chart):
     # TODO: Ensure all sort filters come in lower_case()
     def plot_stars(self, num_stars, sort_filters=None, reverse_flag=False, labels=None):
         super().plot_stars(num_stars, sort_filters=sort_filters, reverse_flag=reverse_flag, labels=labels)
-        if labels:
-            for star in self.sorted_stars_to_plot[:num_stars][:labels]:
-                self.chartSVG.text(star.x, star.y, star.name.capitalize() if star.name else star.hd, color=star.color,
-                                   dx=5 + star.size, size=15*self.SCALING_CONSTANT)
+        # if labels:
+        #     for star in self.sorted_stars_to_plot[:num_stars][:labels]:
+        #         self.chartSVG.text(star.x, star.y, star.name.capitalize() if star.name else star.hd, color=star.color,
+        #                            dx=5 + star.size, size=15*self.SCALING_CONSTANT)
 
     def plot_sso(self, sso):
         self.plot_preprocess_obj(sso)
