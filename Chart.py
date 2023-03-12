@@ -124,11 +124,16 @@ class Chart:
         ---------------
         returns List of sorted Star() objects
         """
-        # Note: Should this be stars_above_horizon? Or all stars?
+
         # Note: Sorted() sucks, can't tell it which key needs to be reversed, just deal with it for now
-        temp = sorted([master_star_list[i] for i in list_to_sort], key=operator.attrgetter(*keys), reverse=reverse_flag)
-        sorted_indices = [master_star_list.index(x) for x in temp]  # This is probably slow as shit, not sure yet
-        return sorted_indices
+        def sort_star_tuple(star_tuple):
+            final = []
+            for key in keys:
+                final.append(star_tuple[0].__getattribute__(key))
+            return tuple(final)
+
+        temp = sorted([(master_star_list[i], i) for i in list_to_sort], key=sort_star_tuple, reverse=reverse_flag)
+        return [x[1] for x in temp]
 
     @abc.abstractmethod
     def find_stars_in_range(self, stars_to_load):
@@ -158,10 +163,6 @@ class Chart:
 
     @abc.abstractmethod
     def add_base_elements(self):
-        pass
-
-    @abc.abstractmethod
-    def plot_preprocess_obj(self, cel_obj):
         pass
 
     @abc.abstractmethod
@@ -536,7 +537,7 @@ class Stereographic(Chart):
                                    dx=5 + self.available_stars[star_index].size, size=15)
         if self.mark_center:
             x, y = self.scale_offset(
-                self.ra_dec_to_xy(self.ra_center, (self.old_dec_center if self.old_dec_center else self.dec_center)))
+                self.ra_dec_to_xy(self.ra_center, (self.old_dec_center if hasattr(self, "old_dec_center") else self.dec_center)))
             self.chartSVG.circle(x, y, 15, color='red', width=1.5, fill=None)
 
     # TODO: Check if plotting will occur outside BBOX
@@ -606,7 +607,7 @@ class Stereographic(Chart):
     def scale_offset(self, point, flip_y=False):
         # input unit coordinates, tuple, (x, y)
         offset = 0
-        if self.old_dec_center:
+        if hasattr(self, "old_dec_center"):
             new = self.ra_dec_to_xy(0, self.old_dec_center)
             offset = new[0] * self.SCALE
         return point[0] * self.SCALE + self.CANVAS_CENTER[0], \
