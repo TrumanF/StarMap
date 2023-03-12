@@ -57,8 +57,8 @@ def main():
     # rad_chart1.plot(num_stars=10000, star_labels=20, sort_filters=['mag'], reverse_flag=False)
     # rad_chart1.export("RadChart1.svg")
 
-    betelgeuse = Area.from_RADec((5.919529*15, 7.407063), (11*15, 90), mark_center=True)
-    test_area2 = Area((6*15, 19*15), (30, 90))
+    betelgeuse = Area.from_RADec((5.919529*15, 7.407063), (13*15, 90), mark_center=True)
+    test_area2 = Area((0*15, 24*15), (0, 90))
     squareChart1 = Stereographic((OBS_LOC, cur_time if current_time else OBS_TIME_AP),
                                  (size * 1.2, size), betelgeuse, Orthographic=False)
     squareChart1.plot(num_stars=2000, star_labels=30, sort_filters=['mag'], reverse_flag=False)

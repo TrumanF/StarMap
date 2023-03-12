@@ -23,10 +23,10 @@ def polar_to_cartesian(r, theta):
 def ecliptic_to_equatorial(lambda_var, beta):
     epsilon = 23.439
     # https://aas.aanda.org/articles/aas/full/1998/01/ds1449/node3.html
-    dec = asin(sin(beta)*cos(epsilon) + cos(beta)*sin(epsilon)*sin(lambda_var))
-    ra = acos((cos(lambda_var)*cos(beta))/cos(dec))
+    dec = asin(sin(beta) * cos(epsilon) + cos(beta) * sin(epsilon) * sin(lambda_var))
+    ra = acos((cos(lambda_var) * cos(beta)) / cos(dec))
     print(ra)
-    ra2 = asin((-sin(beta)*sin(epsilon)+cos(beta)*cos(epsilon)*sin(lambda_var))/cos(dec))
+    ra2 = asin((-sin(beta) * sin(epsilon) + cos(beta) * cos(epsilon) * sin(lambda_var)) / cos(dec))
     print(ra2)
     return 0, dec
 
@@ -58,7 +58,7 @@ class Chart:
     def __init__(self, OBS_INFO, CANVAS_INFO):
 
         self.CANVAS_X, self.CANVAS_Y = CANVAS_INFO
-        self.CANVAS_CENTER = (self.CANVAS_X/2, self.CANVAS_Y/2)
+        self.CANVAS_CENTER = (self.CANVAS_X / 2, self.CANVAS_Y / 2)
         self.chartSVG = SVG(self.CANVAS_X, self.CANVAS_Y,
                             background_color='black')
         self.CHART_ELEMENT_OPACITY = .25
@@ -236,11 +236,11 @@ class AzimuthalEQHemisphere(Chart):
 
     def add_base_elements(self):
         self.chartSVG.circle(self.MAIN_CIRCLE_CX, self.MAIN_CIRCLE_CY, self.MAIN_CIRCLE_R, "white",
-                             width=5*self.SCALING_CONSTANT, fill=False)
+                             width=5 * self.SCALING_CONSTANT, fill=False)
         # draw RA line markings at every hour
         ra_line_angles = np.linspace(0, 2 * math.pi, 25)  # 25 segments, so we can ignore the redundant 0 and 2pi
         for angle in ra_line_angles[:-1]:
-            x2, y2 = polar_to_cartesian(self.MAIN_CIRCLE_R, angle + math.pi/2)
+            x2, y2 = polar_to_cartesian(self.MAIN_CIRCLE_R, angle + math.pi / 2)
             self.chartSVG.line(self.MAIN_CIRCLE_CX, self.MAIN_CIRCLE_CY, x2 + self.MAIN_CIRCLE_CX,
                                y2 + self.MAIN_CIRCLE_CY, "white", width=self.CHART_ELEMENT_WIDTH,
                                opacity=self.CHART_ELEMENT_OPACITY)
@@ -255,13 +255,13 @@ class AzimuthalEQHemisphere(Chart):
         text_size = 50 * self.SCALING_CONSTANT
         # NOTE: This could all be done in a loop - would it be less readable? (?)
         self.chartSVG.text(self.MAIN_CIRCLE_CX, self.MAIN_CIRCLE_CY + self.MAIN_CIRCLE_R, "N", size=text_size,
-                           color="white", dx=-15*self.SCALING_CONSTANT, dy=20*self.SCALING_CONSTANT)
+                           color="white", dx=-15 * self.SCALING_CONSTANT, dy=20 * self.SCALING_CONSTANT)
         self.chartSVG.text(self.MAIN_CIRCLE_CX, self.MAIN_CIRCLE_CY - self.MAIN_CIRCLE_R, "S", size=text_size,
-                           color="white", dx=-15*self.SCALING_CONSTANT, dy=-50*self.SCALING_CONSTANT)
+                           color="white", dx=-15 * self.SCALING_CONSTANT, dy=-50 * self.SCALING_CONSTANT)
         self.chartSVG.text(self.MAIN_CIRCLE_CX + self.MAIN_CIRCLE_R, self.MAIN_CIRCLE_CY, "W", size=text_size,
-                           color="white", dx=15*self.SCALING_CONSTANT, dy=-15*self.SCALING_CONSTANT)
+                           color="white", dx=15 * self.SCALING_CONSTANT, dy=-15 * self.SCALING_CONSTANT)
         self.chartSVG.text(self.MAIN_CIRCLE_CX - self.MAIN_CIRCLE_R, self.MAIN_CIRCLE_CY, "E", size=text_size,
-                           color="white", dx=-45*self.SCALING_CONSTANT, dy=-15*self.SCALING_CONSTANT)
+                           color="white", dx=-45 * self.SCALING_CONSTANT, dy=-15 * self.SCALING_CONSTANT)
 
     def find_stars_in_range(self, stars_to_load):
         with Pool() as pool:
@@ -315,7 +315,8 @@ class AzimuthalEQHemisphere(Chart):
         # star.size = self.max_star_size * (
         #         1 - (star.mag - min_mag) / (max_mag - min_mag)) + self.min_star_size
 
-        self.available_stars[star_index].size = 10**(master_star_list[star_index].mag/(-10.25)) * self.star_size_zero + .25
+        self.available_stars[star_index].size = 10 ** (
+                    master_star_list[star_index].mag / (-10.25)) * self.star_size_zero + .25
         self.available_stars[star_index].size *= self.SCALING_CONSTANT
         self.chartSVG.circle(self.available_stars[star_index].x, self.available_stars[star_index].y,
                              self.available_stars[star_index].size, master_star_list[star_index].color,
@@ -342,7 +343,7 @@ class AzimuthalEQHemisphere(Chart):
 
         if sso.label_print:
             self.chartSVG.text(sso.x, sso.y, sso.name.capitalize(), color=sso.color, dx=5 + sso.size,
-                               size=15*self.SCALING_CONSTANT)
+                               size=15 * self.SCALING_CONSTANT)
 
     # TODO: Revisit the 'plotting_list', code seems a little funky
     def plot_ssos(self, plotting_list=True):
@@ -379,13 +380,14 @@ class AzimuthalEQHemisphere(Chart):
 class Stereographic(Chart):
     def __init__(self, OBS_INFO, CANVAS_INFO, area, Orthographic=False):
         self.ORTHOGRAPHIC = Orthographic
-        self.ra_center, self.dec_center = area.center   # rads
+        self.ra_center, self.dec_center = area.center  # rads
         self.RA_SCOPE = area.RA_SCOPE  # tuple, rads
         self.DEC_SCOPE = area.DEC_SCOPE  # tuple, rads
         self.mark_center = area.mark_center
 
-        if abs(self.RA_SCOPE[0] - self.RA_SCOPE[1]) > math.radians(12*15):
+        if abs(self.RA_SCOPE[0] - self.RA_SCOPE[1]) > math.radians(12 * 15):
             print("Resetting dec_center")
+            self.old_dec_center = self.dec_center
             if abs(self.DEC_SCOPE[0]) < abs(self.DEC_SCOPE[1]):
                 self.dec_center = math.radians(90)
             else:
@@ -442,12 +444,13 @@ class Stereographic(Chart):
             curve = []
             last_point_added = True
             for ra in sample_ra_values:
-                ra = math.radians(ra*15)
+                ra = math.radians(ra * 15)
                 point = self.ra_dec_to_xy(ra, dec_val)
                 if self.check_in_BBOX(point):
                     if last_point_added:
-                        point = (point[0] * self.SCALE + self.CANVAS_CENTER[0],
-                                 -point[1] * self.SCALE + self.CANVAS_CENTER[1])
+                        # point = (point[0] * self.SCALE + self.CANVAS_CENTER[0],
+                        #          -point[1] * self.SCALE + self.CANVAS_CENTER[1])
+                        point = self.scale_offset(point, flip_y=True)
                         curve.append(point)
                         last_point_added = True
                     else:
@@ -462,7 +465,7 @@ class Stereographic(Chart):
             self.chartSVG.curve(curve, width=2, stroke_opacity=.5)
 
         for ra_val in all_ra_lines[:]:
-            ra_val = math.radians(ra_val*15)
+            ra_val = math.radians(ra_val * 15)
             curve = []
             last_point_added = True
             for dec in sample_dec_values:
@@ -470,8 +473,9 @@ class Stereographic(Chart):
                 point = self.ra_dec_to_xy(ra_val, dec)
                 if self.check_in_BBOX(point):
                     if last_point_added:
-                        point = (point[0] * self.SCALE + self.CANVAS_CENTER[0],
-                                 -point[1] * self.SCALE + self.CANVAS_CENTER[1])
+                        # point = (point[0] * self.SCALE + self.CANVAS_CENTER[0],
+                        #          -point[1] * self.SCALE + self.CANVAS_CENTER[1])
+                        point = self.scale_offset(point, flip_y=True)
                         curve.append(point)
                         last_point_added = True
                     else:
@@ -493,17 +497,19 @@ class Stereographic(Chart):
             curve = []
             for ra in ra_space:
                 point = self.ra_dec_to_xy(ra, dec_samp)
-                point = (point[0] * self.SCALE + self.CANVAS_CENTER[0],
-                         -point[1] * self.SCALE + self.CANVAS_CENTER[1])
+                # point = (point[0] * self.SCALE + self.CANVAS_CENTER[0],
+                #          -point[1] * self.SCALE + self.CANVAS_CENTER[1])
+                point = self.scale_offset(point, flip_y=True)
                 curve.append(point)
             self.chartSVG.curve(curve, width=2, stroke_opacity=.25, color='blue')
-        if self.RA_SCOPE[1] - self.RA_SCOPE[0] != math.pi*2:
+        if self.RA_SCOPE[1] - self.RA_SCOPE[0] != math.pi * 2:
             for ra_samp in self.RA_SCOPE:
                 curve = []
                 for dec in dec_space:
                     point = self.ra_dec_to_xy(ra_samp, dec)
-                    point = (point[0] * self.SCALE + self.CANVAS_CENTER[0],
-                             -point[1] * self.SCALE + self.CANVAS_CENTER[1])
+                    # point = (point[0] * self.SCALE + self.CANVAS_CENTER[0],
+                    #          -point[1] * self.SCALE + self.CANVAS_CENTER[1])
+                    point = self.scale_offset(point, flip_y=True)
                     curve.append(point)
                 self.chartSVG.curve(curve, width=2, stroke_opacity=.25, color='blue')
         if bbox:
@@ -529,8 +535,8 @@ class Stereographic(Chart):
                                    else master_star_list[star_index].hd, color='blue',
                                    dx=5 + self.available_stars[star_index].size, size=15)
         if self.mark_center:
-            # TODO: Doesn't work as expected when center is reset due to large RA range
-            x, y = self.scale_offset(self.ra_dec_to_xy(self.ra_center, self.dec_center))
+            x, y = self.scale_offset(
+                self.ra_dec_to_xy(self.ra_center, (self.old_dec_center if self.old_dec_center else self.dec_center)))
             self.chartSVG.circle(x, y, 15, color='red', width=1.5, fill=None)
 
     # TODO: Check if plotting will occur outside BBOX
@@ -544,7 +550,8 @@ class Stereographic(Chart):
             for pair in line_pairs:
                 star1 = next(star for star in self.cons_dict[constellation] if star.bayer == pair[0])
                 star2 = next(star for star in self.cons_dict[constellation] if star.bayer == pair[1])
-                if self.check_in_BBOX((star1.unit_x, star1.unit_y)) and self.check_in_BBOX((star2.unit_x, star2.unit_y)):
+                if self.check_in_BBOX((star1.unit_x, star1.unit_y)) and self.check_in_BBOX(
+                        (star2.unit_x, star2.unit_y)):
                     self.chartSVG.line(star1.x, star1.y, star2.x, star2.y, color='blue', opacity=.85)
 
     def set_scale(self):
@@ -596,10 +603,14 @@ class Stereographic(Chart):
         # Note: -x because of convention of RA/Dec system and sky charts
         return -x * d, y * d
 
-    def scale_offset(self, point):
+    def scale_offset(self, point, flip_y=False):
         # input unit coordinates, tuple, (x, y)
+        offset = 0
+        if self.old_dec_center:
+            new = self.ra_dec_to_xy(0, self.old_dec_center)
+            offset = new[0] * self.SCALE
         return point[0] * self.SCALE + self.CANVAS_CENTER[0], \
-               point[1] * self.SCALE + self.CANVAS_CENTER[1]
+               (-1 if flip_y else 1) * point[1] * self.SCALE + self.CANVAS_CENTER[1] + (-1 if flip_y else 1) * offset
 
     def check_in_BBOX(self, point):
         # input unit coordinates, tuple, (x, y)
