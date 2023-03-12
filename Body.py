@@ -7,17 +7,12 @@ class Star:
         self.bayer = bayer
         self.dist = dist  # parsec
         self.con = con  # string: shortened name of constellation
-        self.az = None  # radians
-        self.alt = None  # degrees
-        self.normalized_alt = None
-
         self.name = name
         self.color = color
 
     def __repr__(self):
         return f"{self.name if self.name else 'No name':^10}/{self.bayer if self.bayer else 'No bayer':^6} | " \
-               f"RA/Dec: {str((self.ra, self.dec)):^38} | " \
-               f"Alt/Az: {str((self.alt, self.az)):^30} | MAG: {self.mag:^10} | " \
+               f"RA/Dec: {str((self.ra, self.dec)):^38} | MAG: {self.mag:^10} | " \
                f"Distance (parsec): {self.dist if self.dist else 'N/A':^20}\n"
 
     @classmethod

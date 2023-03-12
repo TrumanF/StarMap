@@ -5,6 +5,7 @@ import operator
 from multiprocessing import Pool
 import os.path
 import json
+import time
 
 from SVG import SVG
 from Body import Star, SSO
@@ -15,7 +16,6 @@ from astropy.coordinates import AltAz, get_body, SkyCoord
 from astropy import units as u
 
 
-import time
 def polar_to_cartesian(r, theta):
     return r * cos(theta), r * sin(theta)
 
@@ -37,15 +37,6 @@ master_star_list = []
 
 
 def create_star(i) -> Star:
-    """
-    Takes index of self.star_df and creates Star() object based on column headers from main star data CSV.
-    Parameters:
-    ---------------
-    i (int):  index of star data csv
-    ---------------
-    returns Star()
-    """
-    # Processes star information from main star dataframe (star_df) and returns Star object
     new_star = Star(star_df['ra'][i], star_df['dec'][i], star_df['mag'][i], star_df['hd'][i],
                     star_df['bayer'][i], star_df['dist'][i], star_df['proper'][i],
                     con=star_df['con'][i])
@@ -238,7 +229,7 @@ class AzimuthalEQHemisphere(Chart):
         self.MAIN_CIRCLE_CY = self.CANVAS_Y / 2
         # call function to create base chart
         self.add_base_elements()
-        self.find_stars_in_range(5000)
+        self.find_stars_in_range(10000)
 
     def __repr__(self):
         return f'RadialChart | Stars available: {len(self.available_stars)} | SSOs loaded :{len(self.sso_list)}'
@@ -274,20 +265,17 @@ class AzimuthalEQHemisphere(Chart):
 
     def find_stars_in_range(self, stars_to_load):
         with Pool() as pool:
-            result = pool.map_async(self.process_star, enumerate(master_star_list))
+            result = pool.map_async(self.process_star, enumerate(master_star_list[:stars_to_load]))
             pool.close()
             pool.join()
         for t in result.get():
             if t is not None:
                 i, new_ap = t
                 self.available_stars[i] = new_ap
-        for star_index in self.available_stars.keys():
-            self.plot_preprocess_star(star_index)
+                self.plot_preprocess_star(i)
 
     def process_star(self, star_tuple):
         star_index, star = star_tuple
-        # print(star_index)
-        # print(master_star_list)
         coord = SkyCoord(star.ra, star.dec, unit="deg")
         star_altaz_frame = coord.transform_to(self.AA)
         az = float(star_altaz_frame.az.to_string(unit=u.rad, decimal=True))
@@ -298,20 +286,6 @@ class AzimuthalEQHemisphere(Chart):
             new_ap.az = az
             new_ap.alt = alt
             return star_index, new_ap
-            # self.plot_preprocess_star(i)
-
-        # for i, star in enumerate(master_star_list[:stars_to_load]):
-        #     coord = SkyCoord(star.ra, star.dec, unit="deg")
-        #     star_altaz_frame = coord.transform_to(self.AA)
-        #     az = float(star_altaz_frame.az.to_string(unit=u.rad, decimal=True))
-        #     alt = float(star_altaz_frame.alt.to_string(unit=u.deg, decimal=True))
-        #     if alt > 0:
-        #         new_ap = ap()
-        #         new_ap.coord = coord
-        #         new_ap.az = az
-        #         new_ap.alt = alt
-        #         self.available_stars[i] = new_ap
-        #         self.plot_preprocess_star(i)
 
     def plot_preprocess_obj(self, cel_obj):
         cel_obj.normalized_alt = -1 * (cel_obj.alt / 90 - 1)
@@ -336,7 +310,7 @@ class AzimuthalEQHemisphere(Chart):
             self.plot_ssos(SSOs)
 
     def plot_star(self, star_index):
-        min_mag, max_mag = self.mag_info
+        # min_mag, max_mag = self.mag_info
         # Note: Make this line below its own function and redo the normalization, maybe log scale? (?)
         # star.size = self.max_star_size * (
         #         1 - (star.mag - min_mag) / (max_mag - min_mag)) + self.min_star_size
@@ -408,6 +382,7 @@ class Stereographic(Chart):
         self.ra_center, self.dec_center = area.center   # rads
         self.RA_SCOPE = area.RA_SCOPE  # tuple, rads
         self.DEC_SCOPE = area.DEC_SCOPE  # tuple, rads
+        self.mark_center = area.mark_center
 
         if abs(self.RA_SCOPE[0] - self.RA_SCOPE[1]) > math.radians(12*15):
             print("Resetting dec_center")
@@ -433,7 +408,7 @@ class Stereographic(Chart):
         # call function to create base chart
         self.add_base_elements()
 
-        self.find_stars_in_range()
+        self.find_stars_in_range(5000)
 
         for star in self.available_stars:
             self.available_stars[star].x, self.available_stars[star].y = \
@@ -442,7 +417,7 @@ class Stereographic(Chart):
         self.min_star_size = .75
         self.max_star_size = 10
 
-    def find_stars_in_range(self):
+    def find_stars_in_range(self, stars_to_load):
         for i, star in enumerate(master_star_list):
             unit_x, unit_y = self.ra_dec_to_xy(math.radians(star.ra), math.radians(star.dec))
             if self.check_in_BBOX((unit_x, unit_y)):
@@ -482,7 +457,7 @@ class Stereographic(Chart):
                         last_point_added = True
                 else:
                     last_point_added = False
-            if len(curve) < 2:
+            if len(curve) <= 2:
                 continue
             self.chartSVG.curve(curve, width=2, stroke_opacity=.5)
 
@@ -547,11 +522,16 @@ class Stereographic(Chart):
 
     def plot_stars(self, num_stars, sort_filters=None, reverse_flag=False, labels=None):
         super().plot_stars(num_stars, sort_filters=sort_filters, reverse_flag=reverse_flag, labels=labels)
-        # if labels:
-        #     for star in self.sorted_stars_to_plot[:num_stars][:labels]:
-        #         self.chartSVG.text(star.x, star.y,
-        #                            star.name.capitalize() if star.name else star.hd, color='blue',
-        #                            dx=5 + star.size, size=15)
+        if labels:
+            for star_index in self.sorted_stars_to_plot[:num_stars][:labels]:
+                self.chartSVG.text(self.available_stars[star_index].x, self.available_stars[star_index].y,
+                                   master_star_list[star_index].name.capitalize() if master_star_list[star_index].name
+                                   else master_star_list[star_index].hd, color='blue',
+                                   dx=5 + self.available_stars[star_index].size, size=15)
+        if self.mark_center:
+            # TODO: Doesn't work as expected when center is reset due to large RA range
+            x, y = self.scale_offset(self.ra_dec_to_xy(self.ra_center, self.dec_center))
+            self.chartSVG.circle(x, y, 15, color='red', width=1.5, fill=None)
 
     # TODO: Check if plotting will occur outside BBOX
     def plot_constellations(self, constellations):
@@ -568,8 +548,8 @@ class Stereographic(Chart):
                     self.chartSVG.line(star1.x, star1.y, star2.x, star2.y, color='blue', opacity=.85)
 
     def set_scale(self):
-        ra_space = np.linspace(self.RA_SCOPE[0], self.RA_SCOPE[1], 100)
-        dec_space = np.linspace(self.DEC_SCOPE[0], self.DEC_SCOPE[1], 100)
+        ra_space = np.linspace(self.RA_SCOPE[0], self.RA_SCOPE[1], 150)
+        dec_space = np.linspace(self.DEC_SCOPE[0], self.DEC_SCOPE[1], 150)
 
         all_points = []
         for dec_samp in [self.DEC_SCOPE[0], self.DEC_SCOPE[1]]:
@@ -596,7 +576,6 @@ class Stereographic(Chart):
         self.unit_BBOX = ((min_x[0], min_y[1]), (max_x[0], max_y[1]))
         self.BBOX_W = (max_x[0] - min_x[0]) * self.SCALE
         self.BBOX_H = (max_y[1] - min_y[1]) * self.SCALE
-
         self.BBOX = (self.scale_offset((min_x[0], min_y[1])),
                      self.scale_offset((max_x[0], max_y[1])))
 
@@ -621,7 +600,6 @@ class Stereographic(Chart):
         # input unit coordinates, tuple, (x, y)
         return point[0] * self.SCALE + self.CANVAS_CENTER[0], \
                point[1] * self.SCALE + self.CANVAS_CENTER[1]
-    # + (self.CANVAS_CENTER[1] - self.BBOX_H/2)
 
     def check_in_BBOX(self, point):
         # input unit coordinates, tuple, (x, y)

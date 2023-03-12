@@ -4,6 +4,8 @@ from astropy.time import Time
 from astropy import units as u
 from Area import Area
 from Area import ORION_AREA, URSA_MINOR_AREA, BIG_DIPPER_AREA
+from InputFile import stars
+
 import datetime
 import time
 
@@ -17,7 +19,7 @@ OBS_LOC = EarthLocation(lat=OBS_LAT, lon=OBS_LONG, height=100*u.m)
 utcoffset = -8*u.hour
 OBS_TIME_AP = Time(f'{OBS_DATE}T{OBS_TIME}') - utcoffset
 
-
+# TODO: Add GUI support, will take a rework of where loaded stars are and lots of stuff
 # TODO: Make some class that will generate the base template for me, that way it can have different skins easily (?)
 # TODO: Revisit normalization function for magnitude -> drawing size - I think maybe a gentle log scale would be best
 # TODO: Add various legends to show magnitude scale, compass directions, labels for planets and sun/moon
@@ -37,12 +39,12 @@ OBS_TIME_AP = Time(f'{OBS_DATE}T{OBS_TIME}') - utcoffset
 # TODO: Add DSOs and plot their apparent sizes with ovals
 # TODO: Add some sort of gradient on the star based on their variability?
 # TODO: Generally revisit all places where a canvas size is determined and reevaluate
-# TODO: Add PyGui support, will take a rework of where loaded stars are and lots of stuff
 # TODO: Add Plate-Carree projection
 # TODO: Be able to plot max magnitude numbers, i.e. no dimmer than 5
 # TODO: Create area, where certain star is centered and FOV can be specified
 # TODO: Make 3D view using distance (?)
 # TODO: Create more rigid way for labels to be added to chart
+
 
 def main():
     current_time = True
@@ -51,16 +53,16 @@ def main():
 
     time1 = time.time()
 
-    rad_chart1 = AzimuthalEQHemisphere((OBS_LOC, cur_time if current_time else OBS_TIME_AP), (size*1.2, size))
-    rad_chart1.plot(num_stars=5000, star_labels=20, sort_filters=['mag'], reverse_flag=False)
-    rad_chart1.export("RadChart1.svg")
+    # rad_chart1 = AzimuthalEQHemisphere((OBS_LOC, cur_time if current_time else OBS_TIME_AP), (size*1.2, size))
+    # rad_chart1.plot(num_stars=10000, star_labels=20, sort_filters=['mag'], reverse_flag=False)
+    # rad_chart1.export("RadChart1.svg")
 
-    # test_area = Area.from_RADec((88.8, 7.4), (50, 50))
-    #
-    # squareChart1 = Stereographic((OBS_LOC, cur_time if current_time else OBS_TIME_AP),
-    #                              (size * 1.2, size), BIG_DIPPER_AREA, Orthographic=False)
-    # squareChart1.plot(num_stars=2000, star_labels=30, sort_filters=['mag'], reverse_flag=False)
-    # squareChart1.export("SquareChart1.svg")
+    betelgeuse = Area.from_RADec((5.919529*15, 7.407063), (11*15, 90), mark_center=True)
+    test_area2 = Area((6*15, 19*15), (30, 90))
+    squareChart1 = Stereographic((OBS_LOC, cur_time if current_time else OBS_TIME_AP),
+                                 (size * 1.2, size), betelgeuse, Orthographic=False)
+    squareChart1.plot(num_stars=2000, star_labels=30, sort_filters=['mag'], reverse_flag=False)
+    squareChart1.export("SquareChart1.svg")
     # time2 = time.time()
     # squareChart2 = Stereographic((OBS_LOC, cur_time if current_time else OBS_TIME_AP),
     #                              (size * 1.2, size), test_area, Orthographic=False)
@@ -71,9 +73,18 @@ def main():
     #                              (size * 1.2, size), ORION_AREA, Orthographic=False)
     # squareChart3.plot(num_stars=2000, star_labels=30, sort_filters=['mag'], reverse_flag=False)
     # squareChart3.export("SquareChart3.svg")
-    time4 = time.time()
 
-    # print(f'Chart1 time: {time2 - time1}')
+    # time1 = time.time()
+    # for star in stars:
+    #     time2 = time.time()
+    #     area = Area.from_RADec((star[1], star[2]), (30, 30), mark_center=True)
+    #     squareChart = Stereographic((OBS_LOC, cur_time if current_time else OBS_TIME_AP),
+    #                                  (size * 1.2, size), area, Orthographic=False)
+    #     squareChart.plot(num_stars=2000, star_labels=30, sort_filters=['mag'], reverse_flag=False)
+    #     squareChart.export(fr"../ObservingLists/expres_targets_finders/{star[0]}.svg")
+    #     time3 = time.time()
+    #     print(f'{star[0]} time: {time3 - time2}')
+    time4 = time.time()
     # print(f'Chart2 time: {time3 - time2}')
     # print(f'Chart3 time: {time4 - time3}')
     print(f'Entire script time: {time4 - time1}')

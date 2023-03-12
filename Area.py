@@ -9,24 +9,26 @@ def rad_to_degree(angle_list):
     return [math.degrees(x) for x in angle_list]
 
 
+# TODO: Add from_star_name class method
 class Area:
-    def __init__(self, ra_scope, dec_scope):
+    def __init__(self, ra_scope, dec_scope, mark_center=False):
         self._RA_SCOPE = degree_to_rad(ra_scope)  # rads
         self._DEC_SCOPE = degree_to_rad(dec_scope)  # rads
         self.RA_RANGE = abs(ra_scope[0] - ra_scope[1])
         self.DEC_RANGE = abs(dec_scope[0] - dec_scope[1])
         self.center = ((self.RA_SCOPE[0] + self.RA_SCOPE[1])/2, (self.DEC_SCOPE[0] + self.DEC_SCOPE[1])/2)  # rads
+        self.mark_center = mark_center
 
     def __repr__(self):
         return f'Center: {self.center}'
 
     @classmethod
-    def from_RADec(cls, coord, size):
+    def from_RADec(cls, coord, size, mark_center=False):
         ra, dec = coord
         ra_size, dec_size = size
         ra_scope = (ra - ra_size/2, ra + ra_size/2)
         dec_scope = (dec - dec_size/2, dec + dec_size/2)
-        return cls(ra_scope, dec_scope)
+        return cls(ra_scope, dec_scope, mark_center)
 
     @property
     def RA_SCOPE(self, unit='rad'):
