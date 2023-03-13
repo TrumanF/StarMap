@@ -3,7 +3,7 @@ class Star:
         self.ra = float(ra) * 15  # comes in as Hour angle so convert to degrees by multiplying 15
         self.dec = float(dec)  # degrees
         self.mag = float(mag)  # unit-less
-        self.hd = hd
+        self.hd = str(hd)
         self.bayer = bayer
         self.dist = dist  # parsec
         self.con = con  # string: shortened name of constellation

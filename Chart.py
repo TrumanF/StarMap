@@ -1,7 +1,6 @@
 import math
 from math import sin, cos, asin, acos, sqrt
 import abc
-import operator
 from multiprocessing import Pool
 import os.path
 import json
@@ -103,16 +102,9 @@ class Chart:
         self.mag_info = None
         self.sorted_stars_to_plot = []
 
-        self.sso_list = []  # Note: probably needs a rename, something like 'active_sso_list' ?
-        self.possible_sso = ['sun', 'moon', 'mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune']
-        self.ssos_above_horizon = []
-
-        for planet in self.possible_sso:
-            self.add_sso(SSO(planet))
-
     # TODO: THIS SHIT BROKEN WITH NEW SYSTEM FIX IT
     @staticmethod
-    def sort_stars(list_to_sort, keys, reverse_flag=False):
+    def sort_star_indices(list_to_sort, keys, reverse_flag=False):
         """
         Sorts input list according to keys and optional reverse flag.
         Parameters:
@@ -129,37 +121,16 @@ class Chart:
         def sort_star_tuple(star_tuple):
             final = []
             for key in keys:
-                final.append(star_tuple[0].__getattribute__(key))
+                final.append(star_tuple[1].__getattribute__(key))
             return tuple(final)
 
-        temp = sorted([(master_star_list[i], i) for i in list_to_sort], key=sort_star_tuple, reverse=reverse_flag)
-        return [x[1] for x in temp]
+        temp = sorted([(i, master_star_list[i]) for i in list_to_sort], key=sort_star_tuple, reverse=reverse_flag)
+        return [x[0] for x in temp]
 
     @abc.abstractmethod
     def find_stars_in_range(self, stars_to_load):
         pass
 
-    def add_sso(self, sso):
-        """
-        Takes a SSO() object as input and preprocesses, then adds to main self.sso_list.
-        Parameters:
-        ---------------
-        sso (SSO):   SSO() object to be added to main sso_list
-        ---------------
-        returns nothing
-        """
-        sso.coord = get_body(sso.name, self.AA.obstime, self.AA.location)
-        sso.ra = sso.coord.ra.to_string(unit=u.deg, decimal=True)
-        sso.dec = sso.coord.dec.to_string(unit=u.deg, decimal=True)
-
-        sso_altaz_frame = sso.coord.transform_to(self.AA)
-        sso.az = float(sso_altaz_frame.az.to_string(unit=u.rad, decimal=True))
-        sso.alt = float(sso_altaz_frame.alt.to_string(unit=u.deg, decimal=True))
-
-        if sso.alt > 0:
-            self.ssos_above_horizon.append(sso)
-
-        self.sso_list.append(sso)
 
     @abc.abstractmethod
     def add_base_elements(self):
@@ -172,7 +143,7 @@ class Chart:
     @abc.abstractmethod
     def plot_stars(self, num_stars, sort_filters=None, reverse_flag=False, labels=None):
         """
-        Call plot_star() function given certain parameters and filters.
+        Calls plot_star() function given certain parameters and filters.
         Parameters:
         ---------------
         num_stars (int):   number of stars to plot
@@ -185,11 +156,11 @@ class Chart:
         if type(sort_filters) is not list:
             sort_filters = [sort_filters.lower()]
 
-        self.sorted_stars_to_plot = self.sort_stars(self.available_stars.keys(), sort_filters, reverse_flag)[:num_stars]
+        self.sorted_stars_to_plot = self.sort_star_indices(self.available_stars.keys(), sort_filters, reverse_flag)[:num_stars]
 
         # Note: This can be made faster in some scenarios where sorted_stars already is sorted by mag
 
-        sorted_stars_mag_sorted_indices = self.sort_stars(self.sorted_stars_to_plot, ['mag'])
+        sorted_stars_mag_sorted_indices = self.sort_star_indices(self.sorted_stars_to_plot, ['mag'])
 
         sorted_stars_mag_sorted = [master_star_list[i] for i in sorted_stars_mag_sorted_indices]
 
@@ -230,7 +201,14 @@ class AzimuthalEQHemisphere(Chart):
         self.MAIN_CIRCLE_CY = self.CANVAS_Y / 2
         # call function to create base chart
         self.add_base_elements()
-        self.find_stars_in_range(10000)
+        self.find_stars_in_range(100000)
+
+        self.sso_list = []  # Note: probably needs a rename, something like 'active_sso_list' ?
+        self.possible_sso = ['sun', 'moon', 'mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune']
+        self.ssos_above_horizon = []
+
+        for planet in self.possible_sso:
+            self.add_sso(SSO(planet))
 
     def __repr__(self):
         return f'RadialChart | Stars available: {len(self.available_stars)} | SSOs loaded :{len(self.sso_list)}'
@@ -287,6 +265,28 @@ class AzimuthalEQHemisphere(Chart):
             new_ap.az = az
             new_ap.alt = alt
             return star_index, new_ap
+
+    def add_sso(self, sso):
+        """
+        Takes a SSO() object as input and preprocesses, then adds to main self.sso_list.
+        Parameters:
+        ---------------
+        sso (SSO):   SSO() object to be added to main sso_list
+        ---------------
+        returns nothing
+        """
+        sso.coord = get_body(sso.name, self.AA.obstime, self.AA.location)
+        sso.ra = sso.coord.ra.to_string(unit=u.deg, decimal=True)
+        sso.dec = sso.coord.dec.to_string(unit=u.deg, decimal=True)
+
+        sso_altaz_frame = sso.coord.transform_to(self.AA)
+        sso.az = float(sso_altaz_frame.az.to_string(unit=u.rad, decimal=True))
+        sso.alt = float(sso_altaz_frame.alt.to_string(unit=u.deg, decimal=True))
+
+        if sso.alt > 0:
+            self.ssos_above_horizon.append(sso)
+
+        self.sso_list.append(sso)
 
     def plot_preprocess_obj(self, cel_obj):
         cel_obj.normalized_alt = -1 * (cel_obj.alt / 90 - 1)
@@ -436,8 +436,8 @@ class Stereographic(Chart):
         # TODO: Revisit all lines below that handle standard dec and ra lines, units need to be handled better
         all_ra_lines = np.arange(0, 24, 1)
         sample_ra_values = np.linspace(0, 24, 5000)
-        all_dec_lines = np.arange(-90, 90, 10)
 
+        all_dec_lines = np.arange(-90, 90, 10)
         sample_dec_values = np.linspace(-90, 90, 5000)
 
         for dec_val in all_dec_lines[1:]:
@@ -465,7 +465,7 @@ class Stereographic(Chart):
                 continue
             self.chartSVG.curve(curve, width=2, stroke_opacity=.5)
 
-        for ra_val in all_ra_lines[:]:
+        for ra_val in all_ra_lines:
             ra_val = math.radians(ra_val * 15)
             curve = []
             last_point_added = True

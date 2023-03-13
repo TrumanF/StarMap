@@ -14,6 +14,7 @@ SVG_FOOTER = '</svg>'
 
 # https://www.w3schools.com/graphics/svg_intro.asp
 class SVG:
+
     def __init__(self, width, height, background_color="#0e218a"):
         self.elements = []
         self.h, self.w = height, width
@@ -30,16 +31,20 @@ class SVG:
         self.elements.append(f'<line x1="{x1}" y1="{self.h-y1}" x2="{x2}" y2="{self.h-y2}" stroke="{color}" stroke-width="{width}"'
                              f' opacity="{opacity}"/>')
 
+
     def circle(self, cx, cy, r, color="white", width=1.0, fill="white", opacity=1):
         self.elements.append(f'<circle cx="{cx}" cy="{self.h-cy}" r="{r}" stroke="{color}" stroke-width="{width}"'
                              f' fill="{fill if fill else "none"}" opacity="{opacity}"/>')
+
 
     def rect(self, x, y, width, height, color="white", fill="white", stroke_width=1, rx=0):
         self.elements.append(f'<rect x="{x}" y="{self.h-y}"  width="{width}" height="{height}" stroke="{color}"'
                              f' stroke-width="{stroke_width}" fill="{fill}" rx="{rx}" />')
 
+
     def text(self, x, y, txt, color="white", dx=5, dy=5, size=15):
         self.elements.append(f'<text x="{x}" y="{self.h-y}" fill="{color}" dx="{dx}" dy="{-dy}" font-size="{size}px">{txt}</text>')
+
 
     def path(self, points, width=5.0, color="white"):
         d = f"M{points[0][0]} {points[0][1]} "
@@ -49,10 +54,8 @@ class SVG:
         self.elements.append(f'<path d="{d}" stroke-width="{width}" stroke="{color}"/>')
 
     # Note: function from https://github.com/codebox/star-charts/blob/master/svg.py
-    def curve(self, _points, width=5.0, color="white", stroke_opacity=1):
-        # for point in _points:
-        #     _points[_points.index(point)] = (point[0], -point[1])
 
+    def curve(self, _points, width=5.0, color="white", stroke_opacity=1):
         points = sum(_points, ())
 
         # http://schepers.cc/getting-to-the-point
@@ -86,9 +89,10 @@ class SVG:
             bp.append((((p[1][0] + 6 * p[2][0] - p[3][0]) / 6), (p[1][1] + 6 * p[2][1] - p[3][1]) / 6))
             bp.append((p[2][0], p[2][1]))
 
-            d += 'C {} {},{} {},{} {} '.format(bp[1][0], bp[1][1], bp[2][0], bp[2][1], bp[3][0], bp[3][1])
+            d += 'C %s %s, %s %s, %s %s ' % (bp[1][0], bp[1][1], bp[2][0], bp[2][1], bp[3][0], bp[3][1])
 
         self.elements.append('<path d="{}" stroke="{}" stroke-width="{}" fill-opacity="0" stroke-opacity="{}"/>'.format(d, color, width, stroke_opacity))
+
 
     def export(self, file):
         formatted_elements = [f"\t{element}\n" for element in self.elements]
