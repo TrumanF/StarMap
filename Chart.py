@@ -31,7 +31,7 @@ def ecliptic_to_equatorial(lambda_var, beta):
 
 
 # NOTE: THIS LINE NEEDS TO BE MOVED SOMEWHERE SO IT DOESN'T RUN EVERY TIME
-star_df = pd.read_csv('Star CSV/hygdata_v3.csv', keep_default_na=False, nrows=100000)
+star_df = pd.read_csv('Star CSV/hygdata_v3.csv', keep_default_na=False)
 master_star_list = []
 
 
@@ -54,7 +54,7 @@ def gen_master_list():
 class Chart:
     # Note: Read this shit
     # https://www.projectpluto.com/project.htm
-    def __init__(self, OBS_INFO, CANVAS_INFO):
+    def __init__(self, CANVAS_INFO):
 
         self.CANVAS_X, self.CANVAS_Y = CANVAS_INFO
         self.CANVAS_CENTER = (self.CANVAS_X / 2, self.CANVAS_Y / 2)
@@ -62,9 +62,6 @@ class Chart:
                             background_color='black')
         self.CHART_ELEMENT_OPACITY = .25
         self.CHART_ELEMENT_WIDTH = 2.5
-
-        self.OBS_LOC, self.OBS_TIME = OBS_INFO  # astropy EarthLocation and Time objects
-        self.AA = AltAz(location=self.OBS_LOC, obstime=self.OBS_TIME)  # AltAz frame from OBS_LOC and OBS_TIME
 
         self.cons_dict = {'Cap': [], 'Pav': [], 'CMa': [], 'Peg': [], 'Ant': [], 'Sct': [], 'Cen': [], 'Tel': [],
                           'Ori': [], 'Cae': [], 'Hyi': [], 'Mon': [], 'Ari': [], 'Cet': [], 'Lib': [], 'Dra': [],
@@ -189,10 +186,11 @@ class Chart:
 
 class AzimuthalEQHemisphere(Chart):
     # Uses Azimuthal equidistant projection
-    def __init__(self, OBS_INFO, CANVAS_INFO):
+    def __init__(self, CANVAS_INFO, OBS_INFO):
         self.stars_above_horizon = []
-
-        super().__init__(OBS_INFO, CANVAS_INFO)
+        self.OBS_LOC, self.OBS_TIME = OBS_INFO  # astropy EarthLocation and Time objects
+        self.AA = AltAz(location=self.OBS_LOC, obstime=self.OBS_TIME)  # AltAz frame from OBS_LOC and OBS_TIME
+        super().__init__(CANVAS_INFO)
         self.MAIN_CIRCLE_R = (self.CANVAS_Y * .9) / 2  # Note: Change multiplier to parameter
         self.SCALING_CONSTANT = self.MAIN_CIRCLE_R / 675.0  # Based on visual preference from other charts
         self.CHART_ELEMENT_WIDTH = max(1, self.SCALING_CONSTANT * self.CHART_ELEMENT_WIDTH)
@@ -201,7 +199,7 @@ class AzimuthalEQHemisphere(Chart):
         self.MAIN_CIRCLE_CY = self.CANVAS_Y / 2
         # call function to create base chart
         self.add_base_elements()
-        self.find_stars_in_range(100000)
+        self.find_stars_in_range(50000)
 
         self.sso_list = []  # Note: probably needs a rename, something like 'active_sso_list' ?
         self.possible_sso = ['sun', 'moon', 'mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune']
@@ -379,7 +377,7 @@ class AzimuthalEQHemisphere(Chart):
 # Note: The constellation CSV are graphing backwards right now... Can be fixed by returning -x in ra_dec_to_xy
 # TODO: BBOX should be centered, not initial plotting point
 class Stereographic(Chart):
-    def __init__(self, OBS_INFO, CANVAS_INFO, area, Orthographic=False):
+    def __init__(self, CANVAS_INFO, area, Orthographic=False):
         self.ORTHOGRAPHIC = Orthographic
         self.ra_center, self.dec_center = area.center  # rads
         self.RA_SCOPE = area.RA_SCOPE  # tuple, rads
@@ -397,7 +395,7 @@ class Stereographic(Chart):
         self.RA_RANGE = area.RA_RANGE  # float, rads
         self.DEC_RANGE = area.DEC_RANGE  # float, rads
 
-        super().__init__(OBS_INFO, CANVAS_INFO)
+        super().__init__(CANVAS_INFO)
 
         self.MAX_X_SIZE = self.CANVAS_X * .8
         self.MAX_Y_SIZE = self.CANVAS_Y * .8

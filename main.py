@@ -16,7 +16,7 @@ OBS_LONG = -122.496369
 OBS_TIME = "13:45:00"
 OBS_DATE = "2023-02-19"
 OBS_LOC = EarthLocation(lat=OBS_LAT, lon=OBS_LONG, height=100*u.m)
-utcoffset = -8*u.hour
+utcoffset = -7*u.hour
 OBS_TIME_AP = Time(f'{OBS_DATE}T{OBS_TIME}') - utcoffset
 
 # TODO: Add GUI support, will take a rework of where loaded stars are and lots of stuff
@@ -53,15 +53,14 @@ def main():
 
     time1 = time.time()
 
-    # rad_chart1 = AzimuthalEQHemisphere((OBS_LOC, cur_time if current_time else OBS_TIME_AP), (size*1.2, size))
-    # rad_chart1.plot(num_stars=100000, star_labels=20, sort_filters=['mag'], reverse_flag=False)
+    # rad_chart1 = AzimuthalEQHemisphere((size*1.2, size), (OBS_LOC, cur_time if current_time else OBS_TIME_AP))
+    # rad_chart1.plot(num_stars=25000, star_labels=20, sort_filters=['mag'], reverse_flag=False)
     # rad_chart1.export("RadChart1.svg")
 
     # betelgeuse = Area.from_RADec((5.919529*15, 7.407063), (11*15, 90), mark_center=True)
     test_area = Area((0*15, 24*15), (0, 90))
-    squareChart1 = Stereographic((OBS_LOC, cur_time if current_time else OBS_TIME_AP),
-                                 (size * 1.2, size), test_area, Orthographic=False)
-    squareChart1.plot(num_stars=50000, star_labels=30, sort_filters=['mag'], reverse_flag=False)
+    squareChart1 = Stereographic((size * 1.2, size), test_area, Orthographic=False)
+    squareChart1.plot(num_stars=5000, star_labels=30, sort_filters=['mag'], reverse_flag=False)
     squareChart1.export("SquareChart1.svg")
     # time2 = time.time()
     # squareChart2 = Stereographic((OBS_LOC, cur_time if current_time else OBS_TIME_AP),
