@@ -18,7 +18,8 @@ class AzimuthalProperties(PlotProperties):
 
 
 class FilterProperties:
-    def __init__(self, raw_filters):
+    def __init__(self, raw_filters, max_stars=None):
+        self.max_stars = max_stars
         filter_options = ['mag', 'ra', 'dec', 'dist']
         self.raw_filters = raw_filters
         self._filters = []
@@ -32,7 +33,7 @@ class FilterProperties:
                     for param in results:
                         fs = self.FilterSingle()
                         fs.type = fo
-                        number = re.findall(r'\d+\.?\d*', param)[0]
+                        number = re.findall(r'-?\d+\.?\d*', param)[0]
                         fs.value = float(number)
                         greater_than = re.search('\d+\.?\d*<=?|>=?\d+\.?\d*', param)
                         equals = re.search('=', param)

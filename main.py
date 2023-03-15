@@ -5,6 +5,7 @@ from astropy import units as u
 from Area import Area
 from Area import ORION_AREA, URSA_MINOR_AREA, BIG_DIPPER_AREA
 from InputFile import stars
+from Properties import FilterProperties as fp
 
 import datetime
 import time
@@ -45,6 +46,7 @@ OBS_TIME_AP = Time(f'{OBS_DATE}T{OBS_TIME}') - utcoffset
 # TODO: Make 3D view using distance (?)
 # TODO: Create more rigid way for labels to be added to chart
 
+# TODO: Add VisualProperties class to hold colors, sizes, mark_center, and any legends
 
 def main():
     current_time = True
@@ -57,11 +59,13 @@ def main():
     # rad_chart1.plot(num_stars=25000, star_labels=20, sort_filters=['mag'], reverse_flag=False)
     # rad_chart1.export("RadChart1.svg")
 
-    # betelgeuse = Area.from_RADec((5.919529*15, 7.407063), (11*15, 90), mark_center=True)
+    betelgeuse = Area.from_RADec((5.919529*15, 7.407063), (11*15, 90), mark_center=True)
     test_area = Area((0*15, 24*15), (0, 90))
-    squareChart1 = Stereographic((size * 1.2, size), test_area, Orthographic=False)
+    squareChart1 = Stereographic((size * 1.2, size), betelgeuse, Orthographic=False)
     squareChart1.plot(num_stars=5000, star_labels=30, sort_filters=['mag'], reverse_flag=False)
     squareChart1.export("SquareChart1.svg")
+    fp_ = fp(['mag<=11'], 30000)
+    squareChart1.generate()
     # time2 = time.time()
     # squareChart2 = Stereographic((OBS_LOC, cur_time if current_time else OBS_TIME_AP),
     #                              (size * 1.2, size), test_area, Orthographic=False)

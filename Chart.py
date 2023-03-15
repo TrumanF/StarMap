@@ -9,7 +9,7 @@ from copy import deepcopy
 
 from SVG import SVG
 from Body import Star, SSO
-from Properties import PlotProperties as pp, AzimuthalProperties as ap
+from Properties import PlotProperties as pp, AzimuthalProperties as ap, FilterProperties as fp
 import pandas as pd
 import numpy as np
 from astropy.coordinates import AltAz, get_body, SkyCoord
@@ -34,6 +34,7 @@ def ecliptic_to_equatorial(lambda_var, beta):
 # NOTE: THIS LINE NEEDS TO BE MOVED SOMEWHERE SO IT DOESN'T RUN EVERY TIME
 star_df = pd.read_csv('Star CSV/hygdata_v3.csv', keep_default_na=False)
 master_star_list = []
+sorted_lists = {}
 
 
 def create_star(i) -> Star:
@@ -50,6 +51,37 @@ def gen_master_list():
         pool.join()
     for star in result.get():
         master_star_list.append(star)
+
+
+def sort_star_indices(list_to_sort, keys, reverse_flag=False):
+    """
+    Sorts input list according to keys and optional reverse flag.
+    Parameters:
+    ---------------
+    list_to_sort (list):   list of Star() objects to be sorted
+    keys (list):   list of attributes of Star() to be sorted by
+    reverse_flag (bool):   (optional) True indicates the list should be sorted backwards
+    NOTE: As it stands, this reverse flag applies to ALL keys.
+    ---------------
+    returns List of sorted Star() objects
+    """
+
+    # Note: Sorted() sucks, can't tell it which key needs to be reversed, just deal with it for now
+    def sort_star_tuple(star_tuple):
+        final = []
+        for key in keys:
+            final.append(star_tuple[1].__getattribute__(key))
+        return tuple(final)
+
+    temp = sorted([(i, master_star_list[i]) for i in list_to_sort], key=sort_star_tuple, reverse=reverse_flag)
+    return [x[0] for x in temp]
+
+
+def gen_sorted_list():
+    master_star_list_indices = list(range(len(master_star_list)))
+    filters = ['mag', 'ra', 'dec', 'dist']
+    for f in filters:
+        sorted_lists[f] = sort_star_indices(master_star_list_indices, [f])
 
 
 class Chart:
@@ -91,7 +123,8 @@ class Chart:
                     outfile.write(jsonString)
                 time2 = time.time()
             print(f'Master list time: {time2 - time1} | {len(master_star_list)}')
-
+        if not sorted_lists:
+            gen_sorted_list()
         self.available_stars = {}
 
         self.min_star_size = 1
@@ -101,29 +134,6 @@ class Chart:
         self.sorted_stars_to_plot = []
 
     # TODO: THIS SHIT BROKEN WITH NEW SYSTEM FIX IT
-    @staticmethod
-    def sort_star_indices(list_to_sort, keys, reverse_flag=False):
-        """
-        Sorts input list according to keys and optional reverse flag.
-        Parameters:
-        ---------------
-        list_to_sort (list):   list of Star() objects to be sorted
-        keys (list):   list of attributes of Star() to be sorted by
-        reverse_flag (bool):   (optional) True indicates the list should be sorted backwards
-        NOTE: As it stands, this reverse flag applies to ALL keys.
-        ---------------
-        returns List of sorted Star() objects
-        """
-
-        # Note: Sorted() sucks, can't tell it which key needs to be reversed, just deal with it for now
-        def sort_star_tuple(star_tuple):
-            final = []
-            for key in keys:
-                final.append(star_tuple[1].__getattribute__(key))
-            return tuple(final)
-
-        temp = sorted([(i, master_star_list[i]) for i in list_to_sort], key=sort_star_tuple, reverse=reverse_flag)
-        return [x[0] for x in temp]
 
     @abc.abstractmethod
     def find_stars_in_range(self, stars_to_load):
@@ -153,11 +163,11 @@ class Chart:
         if type(sort_filters) is not list:
             sort_filters = [sort_filters.lower()]
 
-        self.sorted_stars_to_plot = self.sort_star_indices(self.available_stars.keys(), sort_filters, reverse_flag)[:num_stars]
+        self.sorted_stars_to_plot = sort_star_indices(self.available_stars.keys(), sort_filters, reverse_flag)[:num_stars]
 
         # Note: This can be made faster in some scenarios where sorted_stars already is sorted by mag
 
-        sorted_stars_mag_sorted_indices = self.sort_star_indices(self.sorted_stars_to_plot, ['mag'])
+        sorted_stars_mag_sorted_indices = sort_star_indices(self.sorted_stars_to_plot, ['mag'])
 
         sorted_stars_mag_sorted = [master_star_list[i] for i in sorted_stars_mag_sorted_indices]
 
@@ -376,6 +386,56 @@ class AzimuthalEQHemisphere(Chart):
 # TODO: Add SSO support for Stereographic (?)
 # Note: The constellation CSV are graphing backwards right now... Can be fixed by returning -x in ra_dec_to_xy
 # TODO: BBOX should be centered, not initial plotting point
+
+
+def find_index_max(elements, value, filter_kw):
+    left, right = 0, len(elements) - 1
+    while left < right:
+        middle = (left + right) // 2
+        val = master_star_list[elements[middle]].__getattribute__(filter_kw)
+        if val <= value:
+            left = middle + 1
+        else:
+            right = middle
+    return right
+
+
+def find_index_min(elements, value, filter_kw):
+    left, right = 0, len(elements) - 1
+    while left < right:
+        middle = (left + right) // 2
+        val = master_star_list[elements[middle]].__getattribute__(filter_kw)
+        if val >= value:
+            right = middle
+        else:
+            left = middle + 1
+    return left
+
+
+def search_outward(filter_kw, val):
+    ind_min = find_index_min(sorted_lists[filter_kw], val, filter_kw)
+    ind_max = find_index_max(sorted_lists[filter_kw], val, filter_kw)
+
+    return ind_min, ind_max
+
+
+def indices_from_filter(filter_prop: fp):
+    all_sets = []
+    for f_group in filter_prop.filters:
+        temp_indices = []
+        for f in f_group:
+            val = f.value
+            type = f.type
+            i_range = search_outward(type, val)
+            if f.greater_than:
+                temp_indices.append(set(sorted_lists[type][i_range[0 if f.equals else 1]:]))
+            if f.less_than:
+                temp_indices.append(set(sorted_lists[type][:i_range[1 if f.equals else 0]]))
+        temp_set = set.intersection(*temp_indices)
+        all_sets.append(temp_set)
+    return set.intersection(*all_sets)
+
+
 class Stereographic(Chart):
     def __init__(self, CANVAS_INFO, area, Orthographic=False):
         self.ORTHOGRAPHIC = Orthographic
@@ -414,15 +474,66 @@ class Stereographic(Chart):
         for star in self.available_stars:
             self.available_stars[star].x, self.available_stars[star].y = \
                 self.scale_offset((self.available_stars[star].unit_x, self.available_stars[star].unit_y))
-
+        print("Stars available in chart: ", len(self.available_stars))
         self.min_star_size = .75
         self.max_star_size = 10
 
     class ChartInstance:
-        def __init__(self, chart_filter, svg, filtered_stars):
+        def __init__(self, base_chart: 'Stereographic', chart_filter: fp = None):
+            self.base_chart = base_chart
+            self.svg = SVG.from_elements(self.base_chart.CANVAS_X, self.base_chart.CANVAS_Y,
+                                         self.base_chart.base_elements)
             self.chart_filter = chart_filter
-            self.svg = svg
-            self.filtered_stars = filtered_stars
+            self.filtered_star_indices = []
+            self.mag_info = None
+            if chart_filter is not None:
+                filter_indices = indices_from_filter(chart_filter)
+                self.filtered_star_indices = list(set.intersection(set(self.base_chart.available_stars.keys()),
+                                                                   filter_indices))
+            else:
+                self.filtered_star_indices = list(self.base_chart.available_stars.keys())
+            print("Stars available in ChartInstance: ", len(self.filtered_star_indices))
+            self.plot_stars()
+            self.svg.export("Testing1.svg")
+
+        def plot_star(self, star_index):
+            min_mag, max_mag = self.mag_info
+            # Note: This line breaks because
+            # min_mag, max_mag = self.base_chart.mag_info
+            # Note: max_mag - min_mag breaks if only 1 star will be displayed
+            # self.base_chart.available_stars[star_index].size = self.base_chart.max_star_size * (
+            #         1 - (master_star_list[star_index].mag - min_mag) / (max_mag - min_mag)) + self.base_chart.min_star_size
+
+            self.svg.circle(self.base_chart.available_stars[star_index].x,
+                            self.base_chart.available_stars[star_index].y,
+                            self.base_chart.available_stars[star_index].size,
+                            master_star_list[star_index].color,
+                            fill="url(#StarGradient1)", width=0)
+
+        def plot_stars(self):
+            filtered_star_mags = [master_star_list[x].mag for x in self.filtered_star_indices]
+            min_mag = min(filtered_star_mags)
+            max_mag = max(filtered_star_mags)
+            self.mag_info = (min_mag, max_mag)
+
+            if self.chart_filter is not None:
+                if self.chart_filter.max_stars is not None:
+                    max_stars = self.chart_filter.max_stars
+            else:
+                max_stars = len(self.base_chart.available_stars)+1
+
+            if max_stars < len(self.filtered_star_indices):
+                print(f"Number of stars available to be plotted is greater than max stars ({max_stars})")
+            for star_index in self.filtered_star_indices[:max_stars]:
+                self.plot_star(star_index)
+
+            if self.base_chart.mark_center:
+                x, y = self.base_chart.scale_offset(
+                    self.base_chart.ra_dec_to_xy(self.base_chart.ra_center,
+                                                 (self.base_chart.old_dec_center if
+                                                  hasattr(self.base_chart, "old_dec_center")
+                                                  else self.base_chart.dec_center)))
+                self.svg.circle(x, y, 15, color='red', width=1.5, fill=None)
 
     def find_stars_in_range(self, stars_to_load):
         for i, star in enumerate(master_star_list):
@@ -626,10 +737,7 @@ class Stereographic(Chart):
             return False
 
     def export(self, file_name):
-        temp_SVG = SVG.from_elements(self.CANVAS_X, self.CANVAS_Y, self.base_elements)
-        temp_SVG.export("test.SVG")
         self.chartSVG.export(file_name)
 
-    def generate(self, file_name, chart_filter):
-        temp_SVG = SVG.from_elements(self.CANVAS_X, self.CANVAS_Y, self.base_elements)
-        self.ChartInstance(chart_filter, temp_SVG, set.intersection(set(self.available_stars.keys())))
+    def generate(self, chart_filter=None):
+        self.ChartInstance(self, chart_filter)
