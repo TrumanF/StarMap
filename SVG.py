@@ -27,24 +27,26 @@ class SVG:
     def __repr__(self):
         return f'SVG | Elements: {len(self.elements)} | Canvas Size: ({self.h}, {self.w})'
 
+    @classmethod
+    def from_elements(cls, width, height, elements):
+        temp_SVG = cls(width, height)
+        temp_SVG.elements = elements
+        return temp_SVG
+
     def line(self, x1, y1, x2, y2, color="white", width=1, opacity=1):
         self.elements.append(f'<line x1="{x1}" y1="{self.h-y1}" x2="{x2}" y2="{self.h-y2}" stroke="{color}" stroke-width="{width}"'
                              f' opacity="{opacity}"/>')
-
 
     def circle(self, cx, cy, r, color="white", width=1.0, fill="white", opacity=1):
         self.elements.append(f'<circle cx="{cx}" cy="{self.h-cy}" r="{r}" stroke="{color}" stroke-width="{width}"'
                              f' fill="{fill if fill else "none"}" opacity="{opacity}"/>')
 
-
     def rect(self, x, y, width, height, color="white", fill="white", stroke_width=1, rx=0):
         self.elements.append(f'<rect x="{x}" y="{self.h-y}"  width="{width}" height="{height}" stroke="{color}"'
                              f' stroke-width="{stroke_width}" fill="{fill}" rx="{rx}" />')
 
-
     def text(self, x, y, txt, color="white", dx=5, dy=5, size=15):
         self.elements.append(f'<text x="{x}" y="{self.h-y}" fill="{color}" dx="{dx}" dy="{-dy}" font-size="{size}px">{txt}</text>')
-
 
     def path(self, points, width=5.0, color="white"):
         d = f"M{points[0][0]} {points[0][1]} "
@@ -92,7 +94,6 @@ class SVG:
             d += 'C %s %s, %s %s, %s %s ' % (bp[1][0], bp[1][1], bp[2][0], bp[2][1], bp[3][0], bp[3][1])
 
         self.elements.append('<path d="{}" stroke="{}" stroke-width="{}" fill-opacity="0" stroke-opacity="{}"/>'.format(d, color, width, stroke_opacity))
-
 
     def export(self, file):
         formatted_elements = [f"\t{element}\n" for element in self.elements]

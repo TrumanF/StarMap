@@ -5,6 +5,7 @@ from multiprocessing import Pool
 import os.path
 import json
 import time
+from copy import deepcopy
 
 from SVG import SVG
 from Body import Star, SSO
@@ -128,9 +129,8 @@ class Chart:
     def find_stars_in_range(self, stars_to_load):
         pass
 
-
     @abc.abstractmethod
-    def add_base_elements(self):
+    def gen_base_elements(self):
         pass
 
     @abc.abstractmethod
@@ -198,7 +198,7 @@ class AzimuthalEQHemisphere(Chart):
         self.MAIN_CIRCLE_CX = self.CANVAS_X / 2
         self.MAIN_CIRCLE_CY = self.CANVAS_Y / 2
         # call function to create base chart
-        self.add_base_elements()
+        self.gen_base_elements()
         self.find_stars_in_range(50000)
 
         self.sso_list = []  # Note: probably needs a rename, something like 'active_sso_list' ?
@@ -211,7 +211,7 @@ class AzimuthalEQHemisphere(Chart):
     def __repr__(self):
         return f'RadialChart | Stars available: {len(self.available_stars)} | SSOs loaded :{len(self.sso_list)}'
 
-    def add_base_elements(self):
+    def gen_base_elements(self):
         self.chartSVG.circle(self.MAIN_CIRCLE_CX, self.MAIN_CIRCLE_CY, self.MAIN_CIRCLE_R, "white",
                              width=5 * self.SCALING_CONSTANT, fill=False)
         # draw RA line markings at every hour
@@ -407,8 +407,8 @@ class Stereographic(Chart):
         self.set_scale()
 
         # call function to create base chart
-        self.add_base_elements()
-
+        self.gen_base_elements()
+        self.base_elements = deepcopy(self.chartSVG.elements)
         self.find_stars_in_range(5000)
 
         for star in self.available_stars:
@@ -417,6 +417,12 @@ class Stereographic(Chart):
 
         self.min_star_size = .75
         self.max_star_size = 10
+
+    class ChartInstance:
+        def __init__(self, chart_filter, svg, filtered_stars):
+            self.chart_filter = chart_filter
+            self.svg = svg
+            self.filtered_stars = filtered_stars
 
     def find_stars_in_range(self, stars_to_load):
         for i, star in enumerate(master_star_list):
@@ -428,7 +434,7 @@ class Stereographic(Chart):
                 self.available_stars[i] = new_pp
 
     # TODO: Add plotting of half and quarter RA/Dec lines
-    def add_base_elements(self, bbox=True):
+    def gen_base_elements(self, bbox=True):
         ra_space = np.linspace(self.RA_SCOPE[0], self.RA_SCOPE[1], 100)
         dec_space = np.linspace(self.DEC_SCOPE[0], self.DEC_SCOPE[1], 100)
         # TODO: Revisit all lines below that handle standard dec and ra lines, units need to be handled better
@@ -620,4 +626,10 @@ class Stereographic(Chart):
             return False
 
     def export(self, file_name):
+        temp_SVG = SVG.from_elements(self.CANVAS_X, self.CANVAS_Y, self.base_elements)
+        temp_SVG.export("test.SVG")
         self.chartSVG.export(file_name)
+
+    def generate(self, file_name, chart_filter):
+        temp_SVG = SVG.from_elements(self.CANVAS_X, self.CANVAS_Y, self.base_elements)
+        self.ChartInstance(chart_filter, temp_SVG, set.intersection(set(self.available_stars.keys())))
