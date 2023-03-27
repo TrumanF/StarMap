@@ -1,5 +1,5 @@
 import codecs
-
+import numpy as np
 
 XML_HEADER = '<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n'
 SVG_FOOTER = '</svg>'
@@ -58,6 +58,12 @@ class SVG:
     # Note: function from https://github.com/codebox/star-charts/blob/master/svg.py
 
     def curve(self, _points, width=5.0, color="white", stroke_opacity=1):
+        last_point = _points[-1]
+        while len(_points) > 100:
+            _points = _points[::2]
+        if last_point != _points[-1]:
+            _points.insert(-1, last_point)
+
         points = sum(_points, ())
 
         # http://schepers.cc/getting-to-the-point
@@ -92,7 +98,6 @@ class SVG:
             bp.append((p[2][0], p[2][1]))
 
             d += 'C %s %s, %s %s, %s %s ' % (bp[1][0], bp[1][1], bp[2][0], bp[2][1], bp[3][0], bp[3][1])
-
         self.elements.append('<path d="{}" stroke="{}" stroke-width="{}" fill-opacity="0" stroke-opacity="{}"/>'.format(d, color, width, stroke_opacity))
 
     def export(self, file):
@@ -100,11 +105,51 @@ class SVG:
         codecs.open(f'SVG/{file}', 'w', 'utf-8').writelines([XML_HEADER, self.SVG_HEADER] + formatted_elements + [SVG_FOOTER])
         print(f"Successfully generated {file}")
 
+    def curve2(self, points, width=5.0, color="white", stroke_opacity=1):
+        def get_bezier_coef(points):
+            # since the formulas work given that we have n+1 points
+            # then n must be this:
+            n = len(points) - 1
+
+            # build coefficents matrix
+            C = 4 * np.identity(n)
+            np.fill_diagonal(C[1:], 1)
+            np.fill_diagonal(C[:, 1:], 1)
+            C[0, 0] = 2
+            C[n - 1, n - 1] = 7
+            C[n - 1, n - 2] = 2
+
+            # build points vector
+            P = [2 * (2 * points[i] + points[i + 1]) for i in range(n)]
+            P[0] = points[0] + 2 * points[1]
+            P[n - 1] = 8 * points[n - 1] + points[n]
+
+            # solve system, find a & b
+            A = np.linalg.solve(C, P)
+            B = [0] * n
+            for i in range(n - 1):
+                B[i] = 2 * points[i + 1] - A[i + 1]
+            B[n - 1] = (A[n - 1] + points[n]) / 2
+
+            return A, B
+        d = 'M {} {} '.format(points[0][0], points[0][1])
+        A, B = get_bezier_coef(np.array(points))
+        print("A: ", A)
+        print("B: ", B)
+        for i, point in enumerate(points[1:]):
+            print(point)
+            d += 'C %s %s, %s %s, %s %s ' % (A[i][0], A[i][1], B[i][0], B[i][1], point[0], point[1])
+            print(d)
+        self.elements.append('<path d="{}" stroke="{}" stroke-width="{}" fill-opacity="0" stroke-opacity="{}"/>'.format(d, color, width, stroke_opacity))
+
 
 def test():
     test = SVG(1800, 1500)
-    test.curve([(100,50), (200, 80), (300, 90), (200, 100), (500, 150), (600, 100), (800, 900)])
+    test.curve([(100, 50), (200, 80), (300, 90), (200, 100), (500, 150), (600, 100), (800, 900)])
+    test2 = SVG(1800, 1500)
+    test2.curve2([(100, 50), (200, 80), (300, 90), (200, 100), (500, 150), (600, 100), (800, 900)])
     test.export("testPath.svg")
+    test2.export("testPath2.svg")
 
 
 if __name__ == "__main__":

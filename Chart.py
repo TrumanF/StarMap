@@ -209,7 +209,7 @@ class AzimuthalEQHemisphere(Chart):
         self.MAIN_CIRCLE_CY = self.CANVAS_Y / 2
         # call function to create base chart
         self.gen_base_elements()
-        self.find_stars_in_range(50000)
+        self.find_stars_in_range(25000)
 
         self.sso_list = []  # Note: probably needs a rename, something like 'active_sso_list' ?
         self.possible_sso = ['sun', 'moon', 'mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune']
@@ -263,6 +263,8 @@ class AzimuthalEQHemisphere(Chart):
 
     def process_star(self, star_tuple):
         star_index, star = star_tuple
+        if star.dec < self.OBS_LOC.lat.degree - 90:
+            return None
         coord = SkyCoord(star.ra, star.dec, unit="deg")
         star_altaz_frame = coord.transform_to(self.AA)
         az = float(star_altaz_frame.az.to_string(unit=u.rad, decimal=True))

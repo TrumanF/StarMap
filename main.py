@@ -49,12 +49,12 @@ OBS_TIME_AP = Time(f'{OBS_DATE}T{OBS_TIME}') - utcoffset
 # TODO: Add VisualProperties class to hold colors, sizes, mark_center, and any legends
 
 def main():
-    current_time = True
+    current_time = False
     cur_time = Time("T".join(str(datetime.datetime.now()).split(" "))) - utcoffset
     size = 1500
 
     time1 = time.time()
-
+    #
     # rad_chart1 = AzimuthalEQHemisphere((size*1.2, size), (OBS_LOC, cur_time if current_time else OBS_TIME_AP))
     # rad_chart1.plot(num_stars=25000, star_labels=20, sort_filters=['mag'], reverse_flag=False)
     # rad_chart1.export("RadChart1.svg")
@@ -64,8 +64,8 @@ def main():
     squareChart1 = Stereographic((size * 1.2, size), betelgeuse, Orthographic=False)
     squareChart1.plot(num_stars=5000, star_labels=30, sort_filters=['mag'], reverse_flag=False)
     squareChart1.export("SquareChart1.svg")
-    fp_ = fp(['mag<=11'], 30000)
-    squareChart1.generate()
+    # fp_ = fp(['mag<=11'], 30000)
+    # squareChart1.generate()
     # time2 = time.time()
     # squareChart2 = Stereographic((OBS_LOC, cur_time if current_time else OBS_TIME_AP),
     #                              (size * 1.2, size), test_area, Orthographic=False)
